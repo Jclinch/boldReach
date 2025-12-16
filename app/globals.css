@@ -1,26 +1,113 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ===============================
+   GLOBALS.CSS — PIXEL PERFECT UI
+   Bold Reach Logistics Design
+   =============================== */
+
+
+/* Root font + smoothing (important for pixel-perfect rendering) */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  text-rendering: optimizeLegibility;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Body baseline */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-white text-gray-900 antialiased;
+  margin: 0;
+  padding: 0;
+}
+
+/* Removes browser input autofill yellow */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  transition: background-color 9999s ease-in-out 0s;
+  -webkit-text-fill-color: #111;
+  font-size: 14px !important;
+}
+
+/* Pixel-perfect placeholder color */
+::placeholder {
+  @apply text-gray-400 opacity-100;
+}
+
+/* Remove default focus outlines (Tailwind handles outlines) */
+*:focus {
+  outline: none !important;
+}
+
+/* Buttons no highlight on iOS */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text dragging on images/icons that should not be draggable */
+img,
+svg {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Global smooth transitions */
+a,
+button,
+input {
+  transition: all 0.15s ease;
+}
+
+/* Scrollbar minimal to match clean UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #bcbcbc;
+}
+
+/* Pixel-perfect form field base */
+input[type='text'],
+input[type='email'],
+input[type='password'] {
+  @apply text-[14px] leading-tight;
+}
+
+/* Gradient consistent across browsers */
+.gradient-orange {
+  background: linear-gradient(90deg, #f97316, #ea580c);
+}
+
+/* Fix baseline alignment for icons inside inputs/buttons */
+.icon-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Prevent text selection on interactive UI */
+.no-select {
+  user-select: none;
+}
+
+/* Typography adjustments to match screenshot pixel-perfect */
+h1, h2, h3, h4, h5, h6 {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Disable image stretching */
+img {
+  object-fit: cover;
+  max-width: 100%;
 }
