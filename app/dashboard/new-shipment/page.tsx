@@ -194,11 +194,6 @@ export default function NewShipmentPage() {
       });
       setPackageImage(null);
       setImagePreview('');
-      
-      // Hide toast after 5 seconds
-      setTimeout(() => {
-        setShowSuccessToast(false);
-      }, 5000);
     } catch (err: any) {
       console.error('create shipment error', err);
       toast.error(err?.message || 'An error occurred. Please try again.');
