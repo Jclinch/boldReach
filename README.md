@@ -29,6 +29,21 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Project Features
+
+- New Shipment: manual Tracking ID input under Weight field.
+- Forgot Password: request reset link via Supabase and custom reset page.
+- Toast Notifications: unified success/error toasts using `sonner`.
+- Admin Users: accurate last sign-in time shown in local timezone.
+
+### Forgot Password Flow
+- Visit `/forgot-password` to request a reset link.
+- Email template at [public/email/forgot-password.html](public/email/forgot-password.html). Upload this in Supabase: Project Settings → Auth → Email Templates → Reset Password.
+- The link redirects to `/reset-password` where users set a new password.
+
+### Toasts
+- Global toaster is mounted in [app/layout.tsx](app/layout.tsx). Use `import { toast } from 'sonner'` and call `toast.success(...)` or `toast.error(...)`.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

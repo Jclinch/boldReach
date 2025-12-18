@@ -9,6 +9,7 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface TrackingEvent {
   eventType: string;
@@ -114,7 +115,7 @@ export default function ShipmentDetailsPage({ params }: { params: Promise<{ id: 
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    toast.success('Copied to clipboard');
   };
 
   if (isLoading) {

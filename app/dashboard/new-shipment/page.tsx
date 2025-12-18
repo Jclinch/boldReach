@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
 const STORAGE_BUCKET = 'package-images'; // Supabase storage bucket for shipment images
 const UPLOAD_FOLDER = 'package-images';
@@ -21,14 +22,13 @@ export default function NewShipmentPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [successMessage, setSuccessMessage] = useState('');
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   const [formData, setFormData] = useState({
     senderName: '',
     receiverName: '',
     itemsDescription: '',
     weight: '',
+    trackingId: '',
     originLocation: '',
     destination: '',
   });
@@ -93,6 +93,11 @@ export default function NewShipmentPage() {
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
       if (!formData.destination.trim()) newErrors.destination = 'Destination is required';
+      if (!formData.trackingId.trim()) newErrors.trackingId = 'Tracking ID is required';
+      // Optional: basic format check (letters, numbers, dashes, length 6-40)
+      if (formData.trackingId && !/^[A-Za-z0-9-]{6,40}$/.test(formData.trackingId)) {
+        newErrors.trackingId = 'Tracking ID can contain letters, numbers, dashes (6-40 chars)';
+      }
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
@@ -105,7 +110,7 @@ export default function NewShipmentPage() {
       const user = session?.user;
       
       if (sessionError || !user) {
-        setErrors({ submit: 'You must be signed in to create a shipment.' });
+        toast.error('You must be signed in to create a shipment.');
         setIsLoading(false);
         return;
       }
@@ -133,16 +138,8 @@ export default function NewShipmentPage() {
         destination: formData.destination,
         metadata: {},
       };
-
-      // Generate tracking number as fallback (BR-YYMMDD-XXXXXX)
-      const now = new Date();
-      const year = String(now.getFullYear()).slice(-2);
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const randomNum = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
-      const generatedTrackingNumber = `BR-${year}${month}${day}-${randomNum}`;
-      
-      shipmentInsert.tracking_number = generatedTrackingNumber;
+      // Use manually provided tracking ID
+      shipmentInsert.tracking_number = formData.trackingId.trim();
 
       if (imagePayload.bucket && imagePayload.path) {
         shipmentInsert.package_image_bucket = imagePayload.bucket;
@@ -158,14 +155,13 @@ export default function NewShipmentPage() {
         .single();
 
       if (insertError) {
-        setErrors({ submit: insertError.message || 'Failed to create shipment' });
+        toast.error(insertError.message || 'Failed to create shipment');
         setIsLoading(false);
         return;
       }
 
       const shipmentId = insertData?.id;
-      // Use the generated tracking number or the one from DB if trigger fired
-      const trackingNumber = insertData?.tracking_number || generatedTrackingNumber;
+      const trackingNumber = insertData?.tracking_number || formData.trackingId.trim();
 
       // Optionally, create a shipment_attachments record referencing this shipment
       if (imagePayload.bucket && imagePayload.path && shipmentId) {
@@ -184,8 +180,7 @@ export default function NewShipmentPage() {
       }
 
       // Show success toast
-      setSuccessMessage(`Shipment created successfully! Tracking #: ${trackingNumber}`);
-      setShowSuccessToast(true);
+      toast.success(`Shipment created successfully! Tracking #: ${trackingNumber}`);
       
       // Reset form
       setFormData({
@@ -193,6 +188,7 @@ export default function NewShipmentPage() {
         receiverName: '',
         itemsDescription: '',
         weight: '',
+        trackingId: '',
         originLocation: '',
         destination: '',
       });
@@ -205,7 +201,7 @@ export default function NewShipmentPage() {
       }, 5000);
     } catch (err: any) {
       console.error('create shipment error', err);
-      setErrors({ submit: err?.message || 'An error occurred. Please try again.' });
+      toast.error(err?.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -216,25 +212,13 @@ export default function NewShipmentPage() {
     Boolean(formData.receiverName.trim()) &&
     Boolean(formData.itemsDescription.trim()) &&
     Boolean(String(formData.weight).trim()) &&
+    Boolean(formData.trackingId.trim()) &&
     Boolean(formData.originLocation.trim()) &&
     Boolean(formData.destination.trim());
 
   return (
     <DashboardLayout>
-      {/* Success Toast */}
-      {showSuccessToast && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3">
-            <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <p className="font-semibold text-sm">Success!</p>
-              <p className="text-xs mt-0.5">{successMessage}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Global toaster handled in RootLayout */}
 
       {/* Content container: width matches screenshot, centered within layout */}
       <div className=" mx-auto pt-6 ">
@@ -280,7 +264,7 @@ export default function NewShipmentPage() {
               </div>
             </div>
 
-            {/* Items Description and Weight */}
+            {/* Items Description, Weight, Tracking ID */}
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="col-span-2">
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Items Description</label>
@@ -312,6 +296,20 @@ export default function NewShipmentPage() {
                   }`}
                 />
                 {errors.weight && <p className="mt-1.5 text-xs text-red-600">{errors.weight}</p>}
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-2">Tracking ID</label>
+                <input
+                  type="text"
+                  name="trackingId"
+                  value={formData.trackingId}
+                  onChange={handleInputChange}
+                  placeholder="e.g., BR-251218-123456"
+                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                    errors.trackingId ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                />
+                {errors.trackingId && <p className="mt-1.5 text-xs text-red-600">{errors.trackingId}</p>}
               </div>
             </div>
 
@@ -442,11 +440,7 @@ export default function NewShipmentPage() {
                 )}
               </button>
             </div>
-             {errors.submit && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-            {errors.submit}
-          </div>
-        )}
+            {/* Submit errors are shown via toast */}
           </div>
         </div>
       </div>

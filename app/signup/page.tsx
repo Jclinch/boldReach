@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { SignUpSchema } from '@/lib/auth';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'sonner';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -57,6 +58,7 @@ export default function SignUpPage() {
           newErrors[field] = error.message;
         });
         setErrors(newErrors);
+        toast.error('Please fix form errors and try again.');
         setIsLoading(false);
         return;
       }
@@ -69,14 +71,14 @@ export default function SignUpPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        setErrors({ submit: data.error || 'Sign up failed' });
+        toast.error(data.error || 'Sign up failed');
         setIsLoading(false);
         return;
       }
-
+      toast.success('Account created! Please sign in.');
       router.push('/signin');
     } catch (error) {
-      setErrors({ submit: 'An error occurred. Please try again.' });
+      toast.error('An error occurred. Please try again.');
       setIsLoading(false);
     }
   };
@@ -119,12 +121,7 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          {/* GLOBAL ERROR */}
-          {errors.submit && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
-              {errors.submit}
-            </div>
-          )}
+          {/* Global errors are shown via toast */}
 
           {/* FORM */}
           <form onSubmit={handleSubmit} className="space-y-5">

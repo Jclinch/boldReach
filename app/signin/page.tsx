@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SignInSchema } from "@/lib/auth";
 import Image from "next/image";
+import { toast } from "sonner";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -38,7 +39,9 @@ export default function SignInPage() {
       result.error.errors.forEach((err) => {
         newErrors[err.path[0] as string] = err.message;
       });
+      // Show field-specific errors inline; also a toast summary
       setErrors(newErrors);
+      toast.error("Please fix form errors and try again.");
       setIsLoading(false);
       return;
     }
@@ -64,7 +67,7 @@ export default function SignInPage() {
         const data = await res.json();
         message = data.error || message;
       }
-      setErrors({ submit: message });
+      toast.error(message);
       setIsLoading(false);
       return;
     }
@@ -73,12 +76,15 @@ export default function SignInPage() {
       const data = await res.json();
       const userRole = data.user?.role || 'user';
       if (userRole === 'admin') {
+        toast.success("Welcome back, Admin!");
         router.push("/admin/dashboard");
       } else {
+        toast.success("Signed in successfully.");
         router.push("/dashboard");
       }
     } else {
       // Non-JSON successful response; fallback to dashboard
+      toast.success("Signed in successfully.");
       router.push("/dashboard");
     }
   };
@@ -124,12 +130,7 @@ export default function SignInPage() {
             </p>
           </div>
 
-          {/* GLOBAL ERROR */}
-          {errors.submit && (
-            <div className="mb-5 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
-              {errors.submit}
-            </div>
-          )}
+          {/* Global errors are shown via toast */}
 
           {/* FORM FIELDS */}
           <div className="space-y-5">

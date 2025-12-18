@@ -74,6 +74,17 @@ export async function POST(request: NextRequest) {
     // User exists - check if they should be admin and update if necessary
     // Role correction is handled by DB migrations/triggers; avoid client updates that can hit RLS.
 
+    // Update last_sign_in_at in users profile table (for admin visibility)
+    try {
+      await supabase
+        .from('users')
+        .update({ last_sign_in_at: new Date().toISOString() })
+        .eq('id', authData.user.id);
+    } catch (e) {
+      // Non-fatal; continue
+      console.warn('Failed to update last_sign_in_at:', e);
+    }
+
     // Redirect based on role (server-side)
     const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
     const redirectResponse = NextResponse.redirect(new URL(redirectUrl, request.url));

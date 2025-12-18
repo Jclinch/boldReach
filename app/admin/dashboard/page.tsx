@@ -11,6 +11,7 @@ import { createClient } from '@/utils/supabase/client';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Box, Truck, Users, Crown, Filter, X, Package, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ShipmentRow {
   id: string;
@@ -201,12 +202,13 @@ export default function AdminDashboard() {
 
   const formatDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleString('en-US', {
+      return new Date(iso).toLocaleString(undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        timeZoneName: 'short',
       });
     } catch {
       return iso;
@@ -323,11 +325,11 @@ export default function AdminDashboard() {
         closeModal();
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to update status');
+        toast.error(err.error || 'Failed to update status');
       }
     } catch (e) {
       console.error('Failed to update shipment:', e);
-      alert('Failed to update status');
+      toast.error('Failed to update status');
     } finally {
       setIsUpdating(false);
     }

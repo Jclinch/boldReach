@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
+import { toast } from 'sonner';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState({
@@ -26,9 +27,9 @@ export default function AdminSettings() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       // Here you would make an actual API call to save settings
-      alert('Settings saved successfully!');
+      toast.success('Settings saved successfully!');
     } catch (error) {
-      alert('Failed to save settings');
+      toast.error('Failed to save settings');
     } finally {
       setSaving(false);
     }
