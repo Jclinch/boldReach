@@ -53,14 +53,14 @@ const Topbar = () => {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/dashboard"
-            className="px-4 py-2 bg-black hover:bg-[#111827] text-white rounded-md text-sm font-medium transition-colors"
+            href="/admin/dashboard"
+            className="px-2 py-2 bg-black hover:bg-[#111827] text-white rounded-md text-xs font-medium transition-colors"
           >
-            Back to User Panel
+            Dashboard
           </Link>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-black hover:bg-[#111827] text-white rounded-md text-sm font-medium transition-colors"
+            className="px-4 py-2 mr-4 bg-black hover:bg-[#111827] text-white rounded-md text-xs font-medium transition-colors"
           >
             Logout
           </button>
@@ -69,12 +69,12 @@ const Topbar = () => {
 
       {/* Top tab switch navigation */}
       <nav className="px-6 pb-4">
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
           {adminNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors
+              className={`flex w-full items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-colors sm:w-auto sm:justify-start
                 ${isActive(item.href) ? 'bg-[#0F2940] text-white' : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#1E293B]'}
               `}
             >

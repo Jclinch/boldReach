@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
@@ -26,11 +26,7 @@ export default function AdminUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [searchTerm, currentPage]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -49,7 +45,11 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const updateUserRole = async (userId: string, newRole: 'user' | 'admin') => {
     try {
@@ -136,7 +136,63 @@ export default function AdminUsers() {
 
       {/* Users Table */}
       <Card>
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="space-y-3 sm:hidden">
+          {users.length === 0 ? (
+            <div className="text-sm text-[#94A3B8]">No users found.</div>
+          ) : (
+            users.map((user) => (
+              <div
+                key={user.id}
+                className="rounded-lg border border-[#E2E8F0] bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-[#1E293B] wrap-break-word">{user.fullName}</p>
+                    <p className="text-sm text-[#94A3B8] wrap-break-word">{user.email}</p>
+                  </div>
+                  <Badge variant={user.role === 'admin' ? 'success' : 'default'}>
+                    {user.role === 'admin' ? 'Admin' : 'User'}
+                  </Badge>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-[#94A3B8]">Shipments</p>
+                    <p className="text-sm text-[#1E293B]">{user.shipmentCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#94A3B8]">Last Sign In</p>
+                    <p className="text-sm text-[#1E293B] wrap-break-word">
+                      {user.lastSignIn ? formatDate(user.lastSignIn) : 'Never'}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-[#94A3B8]">Created</p>
+                    <p className="text-sm text-[#1E293B] wrap-break-word">{formatDate(user.createdAt)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-[#1E293B] mb-2">
+                    Role
+                  </label>
+                  <select
+                    className="w-full text-sm border border-[#E2E8F0] rounded px-3 py-2"
+                    value={user.role}
+                    onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[700px] text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-[#E2E8F0]">
@@ -149,36 +205,46 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-[#E2E8F0]">
-                  <td className="py-2 sm:py-3 px-2 sm:px-4">
-                    <div>
-                      <p className="font-medium text-[#1E293B] break-words">{user.fullName}</p>
-                      <p className="text-xs sm:text-sm text-[#94A3B8] break-words">{user.email}</p>
-                    </div>
-                  </td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4">
-                    <Badge variant={user.role === 'admin' ? 'success' : 'default'}>
-                      {user.role === 'admin' ? 'Admin' : 'User'}
-                    </Badge>
-                  </td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4">{user.shipmentCount}</td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">
-                    {user.lastSignIn ? formatDate(user.lastSignIn) : 'Never'}
-                  </td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">{formatDate(user.createdAt)}</td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4">
-                    <select
-                      className="text-xs sm:text-sm border border-[#E2E8F0] rounded px-2 py-1"
-                      value={user.role}
-                      onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
+              {users.length === 0 ? (
+                <tr>
+                  <td className="py-6 px-4 text-sm text-[#94A3B8]" colSpan={6}>
+                    No users found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="border-b border-[#E2E8F0]">
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">
+                      <div>
+                        <p className="font-medium text-[#1E293B] wrap-break-word">{user.fullName}</p>
+                        <p className="text-xs sm:text-sm text-[#94A3B8] wrap-break-word">{user.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">
+                      <Badge variant={user.role === 'admin' ? 'success' : 'default'}>
+                        {user.role === 'admin' ? 'Admin' : 'User'}
+                      </Badge>
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">{user.shipmentCount}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">
+                      {user.lastSignIn ? formatDate(user.lastSignIn) : 'Never'}
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">
+                      {formatDate(user.createdAt)}
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">
+                      <select
+                        className="text-xs sm:text-sm border border-[#E2E8F0] rounded px-2 py-1"
+                        value={user.role}
+                        onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
