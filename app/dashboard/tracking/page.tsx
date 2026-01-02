@@ -199,29 +199,50 @@ export default function TrackingPage() {
               <div className="mt-10">
                 <h3 className="text-lg font-semibold text-[#1E293B] mb-6">Delivery Progress</h3>
 
-                {/* horizontal progress bar */}
-                <div className="relative px-6 pb-6">
+                {/* Responsive progress bar: vertical on mobile, horizontal on larger screens */}
+                <div className="relative flex flex-col sm:block px-6 pb-6">
                   {/* Background line */}
-                  <div className="absolute left-6 right-6 top-8 h-[6px] bg-[#E6E7EB] rounded-full"></div>
-                  
+                  <div className="hidden sm:block absolute left-6 right-6 top-8 h-[6px] bg-[#E6E7EB] rounded-full"></div>
+                  <div className="block sm:hidden absolute left-1/2 top-8 bottom-8 w-[6px] -translate-x-1/2 bg-[#E6E7EB] rounded-full" style={{height: 220}}></div>
+
                   {/* Filled progress line */}
                   {progressIndex >= 0 && (
-                    <div 
-                      className="absolute left-6 top-8 h-[6px] bg-[#34D399] rounded-full transition-all duration-500"
-                      style={{
-                        width: `calc(${(progressIndex / (STEP_LABELS.length - 1)) * 100}% + 22px - ${progressIndex === 0 ? '0px' : '22px'})`,
-                      }}
-                    ></div>
+                    <>
+                      {/* Horizontal (desktop) */}
+                      <div 
+                        className="hidden sm:block absolute left-6 top-8 h-[6px] bg-[#34D399] rounded-full transition-all duration-500"
+                        style={{
+                          width: `calc(${(progressIndex / (STEP_LABELS.length - 1)) * 100}% + 22px - ${progressIndex === 0 ? '0px' : '22px'})`,
+                        }}
+                      ></div>
+                      {/* Vertical (mobile) */}
+                      <div
+                        className="block sm:hidden absolute left-1/2 top-8 bg-[#34D399] rounded-full transition-all duration-500"
+                        style={{
+                          width: 6,
+                          height: `${(progressIndex / (STEP_LABELS.length - 1)) * 220}px`,
+                          transform: 'translateX(-50%)',
+                        }}
+                      ></div>
+                    </>
                   )}
 
-                  <div className="relative flex items-center justify-between">
+                  {/* Steps: horizontal on desktop, vertical on mobile */}
+                  <div className="relative flex sm:flex-row flex-col items-center sm:justify-between justify-start h-auto sm:h-auto min-h-[260px]">
                     {STEP_LABELS.map((label, idx) => {
                       const completed = idx <= progressIndex;
                       const active = idx === progressIndex;
                       const circleSize = active ? 56 : 44;
 
                       return (
-                        <div key={label} className="flex-1 flex flex-col items-center">
+                        <div
+                          key={label}
+                          className="flex-1 flex flex-col items-center sm:mb-0 mb-6 last:mb-0"
+                          style={
+                            // For vertical, space steps evenly
+                            window.innerWidth < 640 ? { minHeight: 60 } : {}
+                          }
+                        >
                           <div
                             className={`rounded-full flex items-center justify-center ${completed ? 'border-transparent' : 'border-[#E6E7EB]'}`}
                             style={{

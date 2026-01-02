@@ -6,8 +6,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { createClient } from '@/utils/supabase/client';
@@ -17,11 +16,44 @@ const STORAGE_BUCKET = 'package-images'; // Supabase storage bucket for shipment
 const UPLOAD_FOLDER = 'package-images';
 
 export default function NewShipmentPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const LOCATION_OPTIONS = [
+  "ASC-M-Darigo Communication 03 LTD-Lafia",
+  "ASC-M-Carosammy Concept Ltd-Benue",
+  "ASC-M-Crescita Global Resources Ltd-Adamawa",
+  "ASC-M-Don-Yellow Tech-Borno",
+  "ASC-M-Midas touch-Jos",
+  "ASC-M-Midas Touch-Kaduna",
+  "ASC-M-Zikniks-Maiduguri-Maiduguri",
+  "ASC-M-Zikniks-Minna-Minna",
+  "ASC-M-Zikniks-Suleja",
+  "ASRP ELOHIM GADGETS-Abuja",
+  "OSC-Carlcare-Abuja",
+  "OSC-Carlcare-Kano",
+  "CP-Abdul Hisbah Communication LTD-Damaturu",
+  "CP-Dynasteia Gwagwalada-Abuja",
+  "CP-Easy Way Comm (Anyigba)-Kogi",
+  "Cp-Jibo Ventures-Zamfara",
+  "CP-Excel phones idah-Kogi",
+  "ASC-M-Jufel-Tech Communications Ltd-Nasarawa",
+  "ASC-M-Magic Brother-Abuja",
+  "CP-May Royal Communication-Otukpo",
+  "ASC-M-Midas Touch Sokoto-Sokoto",
+  "CP-MOSIE SOLID HUB-Kuje",
+  "CP-Ndubest-Benue",
+  "ASC-M-Reedlim Global Enterprise-Bauchi",
+  "ASC-M-Reedlim Global Enterprise-Gombe",
+  "ASC-M-SmartPhone Global-Katsina",
+  "ASC-M-Smartphone Global Sensible-Duste",
+  "ASC-M-Smartphone Global Sensible-Funtua",
+  "ASC-M-Switrat limited-Mubi",
+  "ASC-M-Ustaz Exclusive Store-Jalingo",
+  "ASC-M-Yisab Nig. Ltd. (Lokoja)-Kogi"
+];
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -31,12 +63,15 @@ export default function NewShipmentPage() {
     trackingId: '',
     originLocation: '',
     destination: '',
+    shipmentDate: '', // NEW FIELD
   });
 
   const [packageImage, setPackageImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -93,6 +128,7 @@ export default function NewShipmentPage() {
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
       if (!formData.destination.trim()) newErrors.destination = 'Destination is required';
+      if (!formData.shipmentDate.trim()) newErrors.shipmentDate = 'Date Sent is required';
       if (!formData.trackingId.trim()) newErrors.trackingId = 'Tracking ID is required';
       // Optional: basic format check (letters, numbers, dashes, length 6-40)
       if (formData.trackingId && !/^[A-Za-z0-9-]{6,40}$/.test(formData.trackingId)) {
@@ -128,7 +164,7 @@ export default function NewShipmentPage() {
       }
 
       // Prepare shipment record
-      const shipmentInsert: any = {
+      const shipmentInsert: Record<string, unknown> = {
         user_id: user.id,
         sender_name: formData.senderName,
         receiver_name: formData.receiverName,
@@ -136,6 +172,7 @@ export default function NewShipmentPage() {
         weight: formData.weight ? parseFloat(String(formData.weight)) : null,
         origin_location: formData.originLocation,
         destination: formData.destination,
+        shipment_date: formData.shipmentDate, // write manual date
         metadata: {},
       };
       // Use manually provided tracking ID
@@ -191,12 +228,14 @@ export default function NewShipmentPage() {
         trackingId: '',
         originLocation: '',
         destination: '',
+        shipmentDate: '',
       });
       setPackageImage(null);
       setImagePreview('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('create shipment error', err);
-      toast.error(err?.message || 'An error occurred. Please try again.');
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -378,35 +417,56 @@ export default function NewShipmentPage() {
               {errors.image && <p className="mt-2 text-xs text-red-600">{errors.image}</p>}
             </div>
 
+            {/* Date Sent */}
+            <div className="mb-6">
+              <label className="block text-[13px] font-medium text-gray-700 mb-2">Date Sent</label>
+              <input
+                type="date"
+                name="shipmentDate"
+                value={formData.shipmentDate}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  errors.shipmentDate ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              {errors.shipmentDate && <p className="mt-1.5 text-xs text-red-600">{errors.shipmentDate}</p>}
+            </div>
+
             {/* Origin Location and Destination */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Origin Location</label>
-                <input
-                  type="text"
+                <select
                   name="originLocation"
                   value={formData.originLocation}
                   onChange={handleInputChange}
-                  placeholder="e.g., CarlCare Warehouse"
-                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  className={`w-full px-4 py-3 text-[14px] border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
                     errors.originLocation ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
-                />
+                >
+                  <option value="">Select Origin</option>
+                  {LOCATION_OPTIONS.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
                 {errors.originLocation && <p className="mt-1.5 text-xs text-red-600">{errors.originLocation}</p>}
               </div>
 
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Destination</label>
-                <input
-                  type="text"
+                <select
                   name="destination"
                   value={formData.destination}
                   onChange={handleInputChange}
-                  placeholder="e.g., Lagos HQ, Nigeria"
-                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  className={`w-full px-4 py-3 text-[14px] border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
                     errors.destination ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
-                />
+                >
+                  <option value="">Select Destination</option>
+                  {LOCATION_OPTIONS.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
                 {errors.destination && <p className="mt-1.5 text-xs text-red-600">{errors.destination}</p>}
               </div>
             </div>

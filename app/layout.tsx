@@ -11,8 +11,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Logistics Pro - Shipment Management",
   description: "Professional logistics and shipment tracking system",
+  manifest: "/site.webmanifest",
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%232563EB'>📦</text></svg>",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

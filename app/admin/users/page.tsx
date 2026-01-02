@@ -137,39 +137,39 @@ export default function AdminUsers() {
       {/* Users Table */}
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[700px] text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-[#E2E8F0]">
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">User</th>
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">Role</th>
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">Shipments</th>
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">Last Sign In</th>
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">Created</th>
-                <th className="text-left py-3 px-4 font-medium text-[#1E293B]">Actions</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">User</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">Role</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">Shipments</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">Last Sign In</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">Created</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-[#1E293B]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
                 <tr key={user.id} className="border-b border-[#E2E8F0]">
-                  <td className="py-3 px-4">
+                  <td className="py-2 sm:py-3 px-2 sm:px-4">
                     <div>
-                      <p className="font-medium text-[#1E293B]">{user.fullName}</p>
-                      <p className="text-sm text-[#94A3B8]">{user.email}</p>
+                      <p className="font-medium text-[#1E293B] break-words">{user.fullName}</p>
+                      <p className="text-xs sm:text-sm text-[#94A3B8] break-words">{user.email}</p>
                     </div>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 sm:py-3 px-2 sm:px-4">
                     <Badge variant={user.role === 'admin' ? 'success' : 'default'}>
                       {user.role === 'admin' ? 'Admin' : 'User'}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4">{user.shipmentCount}</td>
-                  <td className="py-3 px-4 text-sm text-[#94A3B8]">
+                  <td className="py-2 sm:py-3 px-2 sm:px-4">{user.shipmentCount}</td>
+                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">
                     {user.lastSignIn ? formatDate(user.lastSignIn) : 'Never'}
                   </td>
-                  <td className="py-3 px-4 text-sm text-[#94A3B8]">{formatDate(user.createdAt)}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#94A3B8]">{formatDate(user.createdAt)}</td>
+                  <td className="py-2 sm:py-3 px-2 sm:px-4">
                     <select
-                      className="text-sm border border-[#E2E8F0] rounded px-2 py-1"
+                      className="text-xs sm:text-sm border border-[#E2E8F0] rounded px-2 py-1"
                       value={user.role}
                       onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
                     >

@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.shipments (
   package_image_bucket text,
   package_image_path text,
   package_image_url text,
+  shipment_date date,
   tracking_number text UNIQUE,
   status public.shipment_status DEFAULT 'created'::public.shipment_status,
   progress_step public.shipment_progress_step DEFAULT 'pending'::public.shipment_progress_step,
@@ -92,6 +93,10 @@ CREATE TABLE IF NOT EXISTS public.shipment_event_type_map (
 -- ============================================
 DO $$
 BEGIN
+  -- Add shipment_date to shipments if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'shipments' AND column_name = 'shipment_date') THEN
+    ALTER TABLE public.shipments ADD COLUMN shipment_date date;
+  END IF;
   -- Add progress_step to shipments if missing
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'shipments' AND column_name = 'progress_step') THEN
     ALTER TABLE public.shipments ADD COLUMN progress_step public.shipment_progress_step DEFAULT 'pending'::public.shipment_progress_step;

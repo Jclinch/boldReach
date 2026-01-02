@@ -41,9 +41,9 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
   }, [supabase]);
   return (
     <header className="bg-white border-b border-[#E2E8F0] h-auto px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center ml-10 md:text-left gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">{title}</h1>
+            <h1 className="text-2xl font-bold text-[#1E293B] ">{title}</h1>
           {displayName && (
             <p className="text-sm text-[#475569] mt-1">Welcome, {displayName}</p>
           )}

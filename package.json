@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:favicon": "node scripts/generate-favicon.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -29,6 +30,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.0-canary.19",
+    "jimp": "^0.22.12",
+    "png-to-ico": "^2.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

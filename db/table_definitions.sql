@@ -66,6 +66,7 @@ create table public.shipments (
   updated_at timestamp with time zone not null default now(),
   deleted_at timestamp with time zone null,
   progress_step public.shipment_progress_step not null default 'pending'::shipment_progress_step,
+  shipment_date date null,
   constraint shipments_pkey primary key (id),
   constraint shipments_tracking_number_key unique (tracking_number),
   constraint shipments_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete set null
@@ -79,12 +80,12 @@ create index IF not exists idx_shipments_created_at on public.shipments using bt
 
 create index IF not exists idx_shipments_progress_step on public.shipments using btree (progress_step) TABLESPACE pg_default;
 
+create trigger trg_generate_tracking_number BEFORE INSERT on shipments for EACH row
+execute FUNCTION fn_generate_tracking_number ();
+
 create trigger trg_set_updated_at_shipments BEFORE
 update on shipments for EACH row
 execute FUNCTION fn_set_updated_at ();
-
-create trigger trg_generate_tracking_number BEFORE INSERT on shipments for EACH row
-execute FUNCTION fn_generate_tracking_number ();
 ---------
 
 create view public.v_shipments_history_list as

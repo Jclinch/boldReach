@@ -93,30 +93,31 @@ export default function SignInPage() {
   const handleApple = () => {};
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white">
       {/* LEFT IMAGE PANEL (pixel perfect proportions) */}
-      <div className="hidden lg:flex lg:w-[50%]  items-center justify-center px-10">
+      <div className="hidden lg:flex lg:w-[50%] items-center justify-center px-10">
         <div className="w-[692px] h-[898px] rounded-4xl shadow-xl overflow-hidden border border-[#E6E7EB] bg-white">
           <Image
             src="/illustrator.png"
             alt="Illustrator Image"
             width={692}
             height={998}
-            className=" object-cover"
+            className="object-cover"
           />
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="w-full lg:w-[50%] flex items-center justify-center">
-        <div className="w-full max-w-[602px]">
+      <div className="w-full flex items-center justify-center py-8 px-4 sm:px-8 lg:w-[50%]">
+        <div className="w-full max-w-[602px] sm:rounded-2xl sm:shadow-md sm:border sm:border-[#E6E7EB] bg-white p-4 sm:p-8">
           {/* LOGO */}
-          <div className="-ml-9">
+          <div className="flex justify-center lg:justify-start mb-4 lg:mb-0 -ml-0 lg:-ml-9">
             <Image
               src="/logo.png"
               alt="Logistics Pro Logo"
-              width={160}
-              height={160}
+              width={120}
+              height={120}
+              className="mx-auto lg:mx-0"
             />
           </div>
 

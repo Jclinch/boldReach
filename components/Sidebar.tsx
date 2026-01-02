@@ -31,7 +31,12 @@ const navItems = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -58,8 +63,27 @@ export function Sidebar() {
     router.push('/signin');
   };
 
+  // Sidebar classes for mobile slide-in
+  const sidebarBase = "fixed z-30 top-0 left-0 h-full w-[240px] bg-white border-r border-[#ECECEC] flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 lg:z-auto";
+  const sidebarOpen = open ? "translate-x-0" : "-translate-x-full";
+
   return (
-    <aside className="w-[240px] bg-white border-r border-[#ECECEC] flex flex-col ">
+    <aside
+      className={`${sidebarBase} ${sidebarOpen}`}
+      style={{ boxShadow: open ? '0 2px 16px rgba(0,0,0,0.08)' : undefined }}
+      aria-hidden={!open}
+    >
+      {/* Close button for mobile */}
+      <button
+        className="absolute top-4 right-4 z-40 lg:hidden flex items-center justify-center w-8 h-8 rounded-md bg-gray-100 hover:bg-gray-200"
+        aria-label="Close sidebar"
+        onClick={onClose}
+        style={{ display: open ? 'flex' : 'none' }}
+      >
+        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
       {/* Logo */}
       <div className="mt-[6px] flex justify-center">
         <Image

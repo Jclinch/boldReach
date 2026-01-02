@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS public.shipments (
   weight numeric(10,2),        -- weight in kg (supports decimals)
   origin_location text,
   destination text,
+  shipment_date date,
 
   -- Image / attachment references (store storage bucket/path or public url)
   package_image_bucket text,

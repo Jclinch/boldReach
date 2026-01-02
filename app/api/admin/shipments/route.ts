@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         destination,
         items_description,
         weight,
+        shipment_date,
         created_at,
         user_id
       `, { count: 'exact' });
@@ -59,7 +60,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      query = query.eq('status', status);
+      // The admin UI sends progress_step-like values (pending/in_transit/out_for_delivery/delivered).
+      // The DB also has a shipment_status enum (created/confirmed/in_transit/delivered/...).
+      // Support both by routing known progress steps to progress_step filtering.
+      const normalized = status.toLowerCase();
+      const progressSteps = ['pending', 'in_transit', 'out_for_delivery', 'delivered'];
+      if (progressSteps.includes(normalized)) {
+        query = query.eq('progress_step', normalized);
+      } else {
+        query = query.eq('status', normalized);
+      }
     }
 
     const { data: shipments, error, count } = await query
