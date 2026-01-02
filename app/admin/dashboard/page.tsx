@@ -398,7 +398,7 @@
        }
      
        return (
-         <div className="space-y-8">
+         <div className="space-y-4">
            <div>
              <h1 className="text-3xl font-bold text-[#1E293B] mb-1">Welcome Back</h1>
              <p className="text-[#475569]">Here’s your logistics overview for today</p>
@@ -473,8 +473,8 @@
              </div>
      
              <div className="mb-4">
-               <div className="flex gap-4">
-                 <div className="flex-1">
+               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
+                 <div className="w-full sm:flex-1">
                    <Input
                      id="admin-search"
                      type="text"
@@ -484,7 +484,7 @@
                    />
                  </div>
      
-                 <div className="w-48">
+                 <div className="w-full sm:w-48">
                    <div className="relative">
                      {statusFilter === 'all' && (
                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]">
@@ -505,11 +505,11 @@
                    </div>
                  </div>
 
-                <div className="shrink-0">
+                <div className="w-full sm:w-auto sm:shrink-0">
                   <Button
                     onClick={exportShipmentsToCsv}
                     disabled={shipmentsLoading || shipments.length === 0}
-                    className="h-[42px] px-4 bg-[#F97316] text-white hover:bg-[#EA580C] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto h-[42px] px-4 bg-[#F97316] text-white hover:bg-[#EA580C] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Export CSV
                   </Button>
@@ -579,11 +579,11 @@
                 </div>
               ) : shipments.length > 0 ? (
                 shipments.map((shipment) => (
-                  <div key={shipment.id} className="bg-white border border-[#EEF2F6] rounded-lg p-4 shadow-sm">
+                  <div key={shipment.id} className="bg-white border border-[#EEF2F6] rounded-lg p-2 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs text-[#94A3B8]">Tracking ID</p>
-                        <p className="text-sm font-semibold text-[#0F2940] break-words">
+                        <p className="text-sm font-semibold text-[#0F2940] wrap-break-word">
                           {shipment.trackingNumber || '—'}
                         </p>
                       </div>
@@ -607,11 +607,11 @@
                     <div className="mt-4 space-y-3">
                       <div>
                         <p className="text-xs text-[#94A3B8]">Destination</p>
-                        <p className="text-sm text-[#475569] break-words">{shipment.destination || '—'}</p>
+                        <p className="text-sm text-[#475569] wrap-break-word">{shipment.destination || '—'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-[#94A3B8]">Description</p>
-                        <p className="text-sm text-[#475569] break-words">{shipment.description || '—'}</p>
+                        <p className="text-sm text-[#475569] wrap-break-word">{shipment.description || '—'}</p>
                       </div>
                     </div>
 
@@ -636,15 +636,17 @@
      
            {/* Shipment Details Modal */}
            {isModalOpen && selectedShipment && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center">
+             <div className="fixed inset-0 z-50 overflow-y-auto">
                {/* Backdrop */}
                <div
-                 className="absolute inset-0 bg-black/40"
+                 className="fixed inset-0 bg-black/40"
                  onClick={closeModal}
                />
-     
-               {/* Modal */}
-               <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 p-6">
+
+               {/* Modal wrapper (enables vertical scroll on small screens) */}
+               <div className="relative min-h-full flex items-start sm:items-center justify-center p-4 sm:p-6">
+                 {/* Modal */}
+                 <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6">
                  {/* Close */}
                  <button
                    onClick={closeModal}
@@ -792,6 +794,7 @@
                      </div>
                    </div>
                  )}
+                 </div>
                </div>
              </div>
            )}

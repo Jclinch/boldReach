@@ -74,7 +74,7 @@ const Topbar = () => {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex w-full items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-colors sm:w-auto sm:justify-start
+              className={`flex w-full items-center justify-center gap-2 px-3 py-2 rounded-md text-xs md:text-sm transition-colors sm:w-auto sm:justify-start
                 ${isActive(item.href) ? 'bg-[#0F2940] text-white' : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#1E293B]'}
               `}
             >

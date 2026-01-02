@@ -56,14 +56,44 @@ export default function HistoryPage() {
 
         // Apply status filter
         if (filterStatus !== 'all') {
-          query = query.eq('status', filterStatus);
+          // Normalize UI filter values to the set of statuses stored in DB
+          // (e.g. we display "Pending" for the DB status "created").
+          const statusValues: string[] = (() => {
+            switch (filterStatus) {
+              case 'pending':
+                // DB enum uses 'created' for what the UI calls "Pending"
+                return ['created'];
+              case 'in_transit':
+                return ['in_transit', 'in-transit'];
+              default:
+                return [filterStatus];
+            }
+          })();
+
+          query = statusValues.length === 1
+            ? query.eq('status', statusValues[0])
+            : query.in('status', statusValues);
         }
 
         // Execute query
         const { data, error } = await query;
 
         if (error) {
-          console.error('Failed to fetch shipments', error);
+          // PostgREST errors sometimes appear as `{}` in Next dev overlay unless
+          // we log the individual fields.
+          const err = error as unknown as {
+            message?: string;
+            details?: string;
+            hint?: string;
+            code?: string;
+          };
+
+          console.error('Failed to fetch shipments', {
+            message: err.message,
+            details: err.details,
+            hint: err.hint,
+            code: err.code,
+          });
           if (isMounted) setShipments([]);
           return;
         }
@@ -158,8 +188,8 @@ export default function HistoryPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 w-full max-w-full sm:max-w-md mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-end">
+            <div className="lg:col-span-2 w-full max-w-full sm:max-w-md lg:max-w-none mx-auto lg:mx-0">
               <label className="text-sm text-slate-600 mb-2 block">Items Description</label>
                 <div className="relative w-full">
                 <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,12 +201,12 @@ export default function HistoryPage() {
                   placeholder="Search by tracking ID, address, or description"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white text-[#1E293B] focus:border-[#fa9e09] focus:outline-none focus:ring-3 focus:ring-opacity-10 focus:ring-[#fa9e09] w-full max-w-full md:max-w-md sm:text-sm text-xs py-2 sm:py-2.5"
+                  className="pl-10 bg-white text-[#1E293B] focus:border-[#fa9e09] focus:outline-none focus:ring-3 focus:ring-opacity-10 focus:ring-[#fa9e09] w-full max-w-full md:max-w-md lg:max-w-none sm:text-sm text-xs py-2 sm:py-2.5"
                 />
                 </div>
             </div>
 
-            <div className="w-full max-w-full sm:max-w-xs mx-auto">
+            <div className="w-full max-w-full sm:max-w-xs lg:max-w-none mx-auto lg:mx-0">
               <label className="text-sm text-slate-600 mb-2 block"> &nbsp;</label>
               <div className="relative w-full">
                 <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#94A3B8] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,7 +219,7 @@ export default function HistoryPage() {
                 >
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
+                  {/* <option value="confirmed">Confirmed</option> */}
                   <option value="in_transit">In Transit</option>
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
@@ -311,15 +341,15 @@ export default function HistoryPage() {
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-[#475569]">Tracking ID</div>
-                      <div className="font-semibold text-[#0F2940] break-words text-sm">{row.trackingNumber || '—'}</div>
+                      <div className="font-semibold text-[#0F2940] wrap-break-word text-sm">{row.trackingNumber || '—'}</div>
                     </div>
                     <div>
                       <div className="text-xs text-[#475569]">Destination</div>
-                      <div className="text-[#475569] break-words text-sm">{row.destination || '—'}</div>
+                      <div className="text-[#475569] wrap-break-word text-sm">{row.destination || '—'}</div>
                     </div>
                     <div>
                       <div className="text-xs text-[#475569]">Description</div>
-                      <div className="text-[#475569] break-words text-sm">{row.description || '—'}</div>
+                      <div className="text-[#475569] wrap-break-word text-sm">{row.description || '—'}</div>
                     </div>
                   </div>
                 );
