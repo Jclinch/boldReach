@@ -7,9 +7,6 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/Card';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
-import Image from 'next/image';
 
 type EventRow = {
   id: string;
@@ -71,6 +68,7 @@ export default function TrackingPage() {
       const json = await res.json();
       setData(json);
     } catch (err) {
+      console.error('Tracking fetch error:', err);
       setError('Failed to fetch tracking information');
       setData(null);
     } finally {
@@ -102,8 +100,8 @@ export default function TrackingPage() {
                       </svg>
                     </span>
                     <input
-                      className="w-full pl-11 pr-4 h-[44px] text-sm border border-[#E6E7EB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]"
-                      placeholder="BR-251212-984470"
+                      className="w-full pl-11 pr-4 h-11 text-sm border border-[#E6E7EB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B2C]"
+                      placeholder="BDL-123-4567"
                       value={trackingNumber}
                       onChange={(e) => setTrackingNumber(e.target.value)}
                     />
@@ -111,7 +109,7 @@ export default function TrackingPage() {
                 </div>
 
                 <button
-                  className="w-[140px] h-[44px] rounded-md bg-[#F97316] hover:bg-[#ea690c] text-white font-medium shadow"
+                  className="w-[140px] h-11 rounded-md bg-[#F97316] hover:bg-[#ea690c] text-white font-medium shadow"
                   type="submit"
                 >
                   {loading ? 'Tracking...' : 'Track'}
@@ -126,7 +124,7 @@ export default function TrackingPage() {
           <Card>
             <div className="py-10 text-center text-[#94A3B8]">
               <p className="mb-1">Enter a tracking number to view real-time shipment status</p>
-              <p className="text-xs">Format: BR-251212-984470</p>
+              <p className="text-xs">Format: BDL-123-4567</p>
             </div>
           </Card>
         )}
@@ -202,15 +200,15 @@ export default function TrackingPage() {
                 {/* Responsive progress bar: vertical on mobile, horizontal on larger screens */}
                 <div className="relative flex flex-col sm:block px-6 pb-6">
                   {/* Background line */}
-                  <div className="hidden sm:block absolute left-6 right-6 top-8 h-[6px] bg-[#E6E7EB] rounded-full"></div>
-                  <div className="block sm:hidden absolute left-1/2 top-8 bottom-8 w-[6px] -translate-x-1/2 bg-[#E6E7EB] rounded-full" style={{height: 220}}></div>
+                  <div className="hidden sm:block absolute left-6 right-6 top-8 h-1.5 bg-[#E6E7EB] rounded-full"></div>
+                  <div className="block sm:hidden absolute left-1/2 top-8 bottom-8 w-1.5 -translate-x-1/2 bg-[#E6E7EB] rounded-full" style={{height: 220}}></div>
 
                   {/* Filled progress line */}
                   {progressIndex >= 0 && (
                     <>
                       {/* Horizontal (desktop) */}
                       <div 
-                        className="hidden sm:block absolute left-6 top-8 h-[6px] bg-[#34D399] rounded-full transition-all duration-500"
+                        className="hidden sm:block absolute left-6 top-8 h-1.5 bg-[#34D399] rounded-full transition-all duration-500"
                         style={{
                           width: `calc(${(progressIndex / (STEP_LABELS.length - 1)) * 100}% + 22px - ${progressIndex === 0 ? '0px' : '22px'})`,
                         }}

@@ -569,7 +569,7 @@
 #### Header Section
 - **Title:** "Shipment Details"
 - **Font Size:** 24px, Bold
-- **Subtitle:** "Tracking: SHP-2025-001234"
+- **Subtitle:** "Tracking: BDL-123-4567"
 - **Font Size:** 14px, Regular, Color: `#475569`
 - **Margin Bottom:** 24px
 - **Action Buttons:**
@@ -597,7 +597,7 @@
 
 ##### Card 2: Tracking
 - **Title:** "Tracking Number"
-- **Content:** SHP-2025-001234 (copyable)
+- **Content:** BDL-123-4567 (copyable)
 - **Copy Icon:** Color `#2563EB`, cursor pointer
 
 ##### Card 3: Est. Delivery

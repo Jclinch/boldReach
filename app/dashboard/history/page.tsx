@@ -47,11 +47,10 @@ export default function HistoryPage() {
           return;
         }
 
-        // Build base query
+        // Build base query (shared history: show shipments from all users)
         let query = supabase
           .from('shipments')
           .select('*')
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         // Apply status filter
@@ -184,7 +183,7 @@ export default function HistoryPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Logistics History</h1>
-          <p className="text-[#475569]">View and manage all your shipments</p>
+          <p className="text-[#475569]">View and manage all shipments</p>
         </div>
 
         <div className="space-y-4">

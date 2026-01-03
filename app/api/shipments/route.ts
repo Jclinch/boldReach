@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('shipments')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (status !== 'all') {
@@ -81,15 +80,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Generate tracking number
-    const trackingNumber = `SHP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
     const { data, error } = await supabase
       .from('shipments')
       .insert([
         {
           user_id: userId,
-          tracking_number: trackingNumber,
           pickup_location: body.pickupLocation,
           pickup_address: body.pickupAddress,
           pickup_city: body.pickupCity,

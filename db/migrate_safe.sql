@@ -211,14 +211,31 @@ BEGIN
 END;
 $$;
 
+-- Create (or ensure) a sequence used for non-repeating 7-digit tracking IDs
+CREATE SEQUENCE IF NOT EXISTS shipment_tracking_seq START 100000;
+
+-- Bound the sequence so we never repeat within 7 digits.
+-- This guarantees uniqueness for 9,999,999 generated IDs (no cycling).
+ALTER SEQUENCE shipment_tracking_seq MINVALUE 1 MAXVALUE 9999999 NO CYCLE;
+
 -- Function to generate tracking number
 CREATE OR REPLACE FUNCTION public.fn_generate_tracking_number()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  seq_val bigint;
+  prefix text := 'BDL';
+  modulus bigint := 10000000; -- 10^7
+  multiplier bigint := 48271; -- coprime with 10^7, so multiplication permutes all 7-digit values
+  scrambled bigint;
+  digits text;
 BEGIN
   IF NEW.tracking_number IS NULL OR NEW.tracking_number = '' THEN
-    NEW.tracking_number = 'TRK' || TO_CHAR(now(), 'YYYYMMDD') || '-' || UPPER(SUBSTRING(gen_random_uuid()::text, 1, 8));
+    seq_val := nextval('shipment_tracking_seq');
+    scrambled := (multiplier * seq_val) % modulus;
+    digits := lpad(scrambled::text, 7, '0');
+    NEW.tracking_number := prefix || '-' || substr(digits, 1, 3) || '-' || substr(digits, 4, 4);
   END IF;
   RETURN NEW;
 END;

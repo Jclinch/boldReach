@@ -10,6 +10,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 2) Create a sequence for human-friendly tracking numbers
 CREATE SEQUENCE IF NOT EXISTS shipment_tracking_seq START 100000;
 
+-- Bound the sequence so we never repeat within 7 digits.
+-- This guarantees uniqueness for 9,999,999 generated IDs (no cycling).
+ALTER SEQUENCE shipment_tracking_seq MINVALUE 1 MAXVALUE 9999999 NO CYCLE;
+
 -- 3) Create an enum type for shipment status
 DO $$
 BEGIN
@@ -112,18 +116,25 @@ CREATE OR REPLACE FUNCTION public.fn_generate_tracking_number()
 RETURNS TRIGGER AS $$
 DECLARE
   seq_val bigint;
-  prefix text := 'BR';
-  date_part text;
+  prefix text := 'BDL';
+  modulus bigint := 10000000; -- 10^7
+  multiplier bigint := 48271; -- coprime with 10^7, so multiplication permutes all 7-digit values
+  scrambled bigint;
+  digits text;
 BEGIN
   IF NEW.tracking_number IS NOT NULL AND NEW.tracking_number <> '' THEN
     RETURN NEW;
   END IF;
 
   seq_val := nextval('shipment_tracking_seq');
-  date_part := to_char(now(), 'YYMMDD');
 
-  -- Example: BR-251211-100001  (BR-{YYMMDD}-{seq})
-  NEW.tracking_number := prefix || '-' || date_part || '-' || lpad(seq_val::text, 6, '0');
+  -- Generate a 7-digit, non-repeating value by applying a bijection over 0..9,999,999.
+  -- With the sequence bounded to 1..9,999,999 and NO CYCLE, this will not repeat.
+  scrambled := (multiplier * seq_val) % modulus;
+  digits := lpad(scrambled::text, 7, '0');
+
+  -- Example: BDL-123-4567  (BDL-{3 digits}-{4 digits})
+  NEW.tracking_number := prefix || '-' || substr(digits, 1, 3) || '-' || substr(digits, 4, 4);
 
   RETURN NEW;
 END;
@@ -145,6 +156,10 @@ ALTER TABLE public.shipment_events ENABLE ROW LEVEL SECURITY;
 -- Allow SELECT for owner
 CREATE POLICY "shipments_select_owner" ON public.shipments
   FOR SELECT USING (auth.uid() = user_id);
+
+-- Allow SELECT for any authenticated user (shared shipment history)
+CREATE POLICY "shipments_select_authenticated" ON public.shipments
+  FOR SELECT TO authenticated USING (true);
 
 -- Allow INSERT only when auth.uid() = user_id
 CREATE POLICY "shipments_insert_owner" ON public.shipments

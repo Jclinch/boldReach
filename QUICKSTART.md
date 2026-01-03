@@ -72,7 +72,7 @@ Visit: **http://localhost:3000**
    - Type: Standard
    - Weight: 5.5
 3. Click "Create Shipment"
-4. You'll see tracking number: **SHP-XXXX-XXXXXX**
+4. You'll see tracking number: **BDL-XXX-XXXX**
 
 ### Test View History
 1. Click "Logistic History" in sidebar
@@ -82,7 +82,7 @@ Visit: **http://localhost:3000**
 
 ### Test Live Tracking
 1. Click "Live Tracking" in sidebar
-2. Paste your tracking number (SHP-XXXX-XXXXXX)
+2. Paste your tracking number (BDL-XXX-XXXX)
 3. Click "Track"
 4. See status and timeline
 

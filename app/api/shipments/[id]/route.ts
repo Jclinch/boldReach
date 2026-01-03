@@ -40,7 +40,6 @@ export async function GET(
       .from('shipments')
       .select('*')
       .eq('id', id)
-      .eq('user_id', userId)
       .single();
 
     if (shipmentError || !shipment) {

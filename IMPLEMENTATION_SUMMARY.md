@@ -231,7 +231,7 @@ Visit http://localhost:3000 → Redirects to /signin
 
 ### Live Tracking Flow
 1. → /dashboard/tracking
-2. Enter tracking number (SHP-XXXX-XXXXXX)
+2. Enter tracking number (BDL-XXX-XXXX)
 3. See status badge
 4. View info cards (route, weight, est. delivery)
 5. Timeline shows event progression

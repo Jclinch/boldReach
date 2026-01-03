@@ -156,7 +156,7 @@ The application will be available at `http://localhost:3000`
 
 ### Track Shipment
 1. Navigate to `/dashboard/tracking`
-2. Enter tracking number (format: SHP-XXXX-XXXXXX)
+2. Enter tracking number (format: BDL-XXX-XXXX)
 3. View real-time tracking with timeline of events
 4. See estimated delivery date and route map
 
@@ -168,7 +168,7 @@ The application will be available at `http://localhost:3000`
 - `POST /api/auth/logout` - Sign out user
 
 ### Shipments
-- `GET /api/shipments` - Get all user shipments (with search/filter)
+- `GET /api/shipments` - Get shipments (with search/filter)
 - `POST /api/shipments` - Create new shipment
 - `GET /api/shipments/[id]` - Get single shipment details
 - `GET /api/shipments/stats` - Get dashboard statistics

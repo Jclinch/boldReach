@@ -31,7 +31,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Project Features
 
-- New Shipment: manual Tracking ID input under Weight field.
+- New Shipment: auto-generated tracking ID (BDL-XXX-XXXX).
 - Forgot Password: request reset link via Supabase and custom reset page.
 - Toast Notifications: unified success/error toasts using `sonner`.
 - Admin Users: accurate last sign-in time shown in local timezone.

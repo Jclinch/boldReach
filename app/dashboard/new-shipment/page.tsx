@@ -60,7 +60,6 @@ export default function NewShipmentPage() {
     receiverName: '',
     itemsDescription: '',
     weight: '',
-    trackingId: '',
     originLocation: '',
     destination: '',
     shipmentDate: '', // NEW FIELD
@@ -129,11 +128,6 @@ export default function NewShipmentPage() {
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
       if (!formData.destination.trim()) newErrors.destination = 'Destination is required';
       if (!formData.shipmentDate.trim()) newErrors.shipmentDate = 'Date Sent is required';
-      if (!formData.trackingId.trim()) newErrors.trackingId = 'Tracking ID is required';
-      // Optional: basic format check (letters, numbers, dashes, length 6-40)
-      if (formData.trackingId && !/^[A-Za-z0-9-]{6,40}$/.test(formData.trackingId)) {
-        newErrors.trackingId = 'Tracking ID can contain letters, numbers, dashes (6-40 chars)';
-      }
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
@@ -175,8 +169,6 @@ export default function NewShipmentPage() {
         shipment_date: formData.shipmentDate, // write manual date
         metadata: {},
       };
-      // Use manually provided tracking ID
-      shipmentInsert.tracking_number = formData.trackingId.trim();
 
       if (imagePayload.bucket && imagePayload.path) {
         shipmentInsert.package_image_bucket = imagePayload.bucket;
@@ -198,7 +190,7 @@ export default function NewShipmentPage() {
       }
 
       const shipmentId = insertData?.id;
-      const trackingNumber = insertData?.tracking_number || formData.trackingId.trim();
+      const trackingNumber = insertData?.tracking_number ?? '—';
 
       // Optionally, create a shipment_attachments record referencing this shipment
       if (imagePayload.bucket && imagePayload.path && shipmentId) {
@@ -225,7 +217,6 @@ export default function NewShipmentPage() {
         receiverName: '',
         itemsDescription: '',
         weight: '',
-        trackingId: '',
         originLocation: '',
         destination: '',
         shipmentDate: '',
@@ -246,7 +237,6 @@ export default function NewShipmentPage() {
     Boolean(formData.receiverName.trim()) &&
     Boolean(formData.itemsDescription.trim()) &&
     Boolean(String(formData.weight).trim()) &&
-    Boolean(formData.trackingId.trim()) &&
     Boolean(formData.originLocation.trim()) &&
     Boolean(formData.destination.trim());
 
@@ -335,15 +325,12 @@ export default function NewShipmentPage() {
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Tracking ID</label>
                 <input
                   type="text"
-                  name="trackingId"
-                  value={formData.trackingId}
-                  onChange={handleInputChange}
-                  placeholder="e.g., BR-251218-123456"
-                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
-                    errors.trackingId ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  value="Auto-generated (BDL-XXX-XXXX)"
+                  disabled
+                  readOnly
+                  className="w-full px-4 py-3 text-[14px] border rounded-md bg-gray-50 text-gray-500 border-gray-300"
                 />
-                {errors.trackingId && <p className="mt-1.5 text-xs text-red-600">{errors.trackingId}</p>}
+                <p className="mt-1.5 text-xs text-gray-500">Generated automatically when you create the shipment.</p>
               </div>
             </div>
 
