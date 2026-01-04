@@ -75,7 +75,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No update fields provided' }, { status: 400 });
     }
 
-    if (role && !['user', 'admin'].includes(role)) {
+    if (role && !['user', 'admin', 'super_admin'].includes(role)) {
       return NextResponse.json({ error: 'Valid role is required' }, { status: 400 });
     }
 

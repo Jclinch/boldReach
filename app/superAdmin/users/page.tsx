@@ -111,7 +111,7 @@ export default function AdminUsers() {
 		fetchUsers();
 	}, [fetchUsers]);
 
-	const updateUserRole = async (userId: string, newRole: 'user' | 'admin') => {
+	const updateUserRole = async (userId: string, newRole: 'user' | 'admin' | 'super_admin') => {
 		try {
 			const response = await fetch(`/api/admin/users/${userId}`, {
 				method: 'PATCH',
@@ -381,11 +381,11 @@ export default function AdminUsers() {
 										className="w-full text-sm border border-[#E2E8F0] rounded px-3 py-2"
 										value={user.role}
 										disabled={user.role === 'super_admin'}
-										onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
+										onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin' | 'super_admin')}
 									>
 										<option value="user">User</option>
 										{isSuperAdminArea ? <option value="admin">Admin</option> : null}
-										{user.role === 'super_admin' ? <option value="super_admin">SuperAdmin</option> : null}
+										{isSuperAdminArea ? <option value="super_admin">SuperAdmin</option> : null}
 									</select>
 								</div>
 							</div>
@@ -453,11 +453,11 @@ export default function AdminUsers() {
 												className="text-xs sm:text-sm border border-[#E2E8F0] rounded px-2 py-1"
 												value={user.role}
 												disabled={user.role === 'super_admin'}
-												onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin')}
+												onChange={(e) => updateUserRole(user.id, e.target.value as 'user' | 'admin' | 'super_admin')}
 											>
 												<option value="user">User</option>
 												{isSuperAdminArea ? <option value="admin">Admin</option> : null}
-												{user.role === 'super_admin' ? <option value="super_admin">SuperAdmin</option> : null}
+												{isSuperAdminArea ? <option value="super_admin">SuperAdmin</option> : null}
 											</select>
 										</td>
 									</tr>
