@@ -85,7 +85,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         </svg>
       </button>
       {/* Logo */}
-      <div className="mt-[6px] flex justify-center">
+      <div className="mt-1.5 flex justify-center">
         <Image
           src="/logo.png"
           alt="Bold Reach"
@@ -124,26 +124,27 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           );
         })}
 
-        {/* Admin Panel Link - Only show for admin users */}
-        {userRole === 'admin' && (
-          <Link
-            href="/admin/dashboard"
-            className={`
-              flex items-center gap-3 px-4 py-3 text-sm font-medium transition rounded-xl
-              ${
-                pathname.startsWith('/admin')
-                  ? 'bg-[#F97316] text-white'
-                  : 'text-[#8B8F97] hover:bg-[#F8F8F8]'
-              }
-            `}
-          >
-            <Shield
-              size={18}
-              className={pathname.startsWith('/admin') ? 'text-white' : 'text-[#8B8F97]'}
-            />
-            Admin Panel
-          </Link>
-        )}
+        {/* Admin / SuperAdmin Panel Link */}
+        {(userRole === 'admin' || userRole === 'super_admin') && (() => {
+          const isActive = pathname.startsWith('/admin') || pathname.startsWith('/superAdmin');
+          const href = userRole === 'super_admin' ? '/superAdmin/dashboard' : '/admin/dashboard';
+          return (
+            <Link
+              href={href}
+              className={`
+                flex items-center gap-3 px-4 py-3 text-sm font-medium transition rounded-xl
+                ${
+                  isActive
+                    ? 'bg-[#F97316] text-white'
+                    : 'text-[#8B8F97] hover:bg-[#F8F8F8]'
+                }
+              `}
+            >
+              <Shield size={18} className={isActive ? 'text-white' : 'text-[#8B8F97]'} />
+              Admin Panel
+            </Link>
+          );
+        })()}
       </nav>
 
       {/* Sign Out */}

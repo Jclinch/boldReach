@@ -1,21 +1,27 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { LayoutDashboard, Users, BarChart3, Settings as SettingsIcon } from 'lucide-react';
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
+type TopbarMode = 'admin' | 'super_admin';
+
+const superAdminNavItems: NavItem[] = [
+  { href: '/superAdmin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { href: '/superAdmin/users', label: 'User Management', icon: <Users className="w-4 h-4" /> },
+  { href: '/superAdmin/analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+  { href: '/superAdmin/settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
+];
 
 const adminNavItems: NavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { href: '/admin/users', label: 'User Management', icon: <Users className="w-4 h-4" /> },
   { href: '/admin/analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-  { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
 ];
 
-const Topbar = () => {
+const Topbar = ({ mode = 'super_admin' }: { mode?: TopbarMode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -32,17 +38,23 @@ const Topbar = () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (mounted) setUserEmail(user?.email ?? '');
-      } catch (e) {
+      } catch {
         // ignore
       }
     })();
     return () => { mounted = false; };
   }, [supabase]);
 
+  const baseDashboardHref = mode === 'admin' ? '/admin/dashboard' : '/superAdmin/dashboard';
+
+  const navItems = useMemo(() => {
+    return mode === 'admin' ? adminNavItems : superAdminNavItems;
+  }, [mode]);
+
   const isActive = (href: string) => {
-    // Consider hash routes active when on dashboard
-    if (href.includes('#') && pathname === '/admin/dashboard') return true;
-    return pathname === href;
+    if (href.includes('#') && pathname === baseDashboardHref) return true;
+    if (pathname === href) return true;
+    return pathname.startsWith(`${href}/`);
   };
 
   return (
@@ -53,7 +65,7 @@ const Topbar = () => {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/admin/dashboard"
+            href={baseDashboardHref}
             className="px-2 py-2 bg-black hover:bg-[#111827] text-white rounded-md text-xs font-medium transition-colors"
           >
             Dashboard
@@ -70,7 +82,7 @@ const Topbar = () => {
       {/* Top tab switch navigation */}
       <nav className="px-6 pb-4">
         <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
-          {adminNavItems.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

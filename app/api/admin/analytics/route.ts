@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient(cookies());
 
-    // Check if user is admin
+    // Check if user is admin / super_admin
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (userError || userData?.role !== 'admin') {
+    const role = (userData?.role || '').toString();
+    if (userError || (role !== 'admin' && role !== 'super_admin')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

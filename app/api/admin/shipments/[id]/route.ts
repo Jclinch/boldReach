@@ -25,11 +25,11 @@ export async function PATCH(
       .eq('id', user.id)
       .single();
 
-    if (userError || userData?.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (userError || userData?.role !== 'super_admin') {
+      return NextResponse.json({ error: 'SuperAdmin access required' }, { status: 403 });
     }
 
-    const { status: progressStep, location } = await request.json();
+    const { status: progressStep, location, receiverName, weightKg } = await request.json();
 
     if (!progressStep) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
@@ -61,6 +61,31 @@ export async function PATCH(
     // Include destination if location is provided
     if (location && location.trim()) {
       updateData.destination = location.trim();
+    }
+
+    // Optional: update receiver name
+    if (typeof receiverName === 'string') {
+      const trimmed = receiverName.trim();
+      if (!trimmed) {
+        return NextResponse.json({ error: 'Receiver name cannot be empty' }, { status: 400 });
+      }
+      if (trimmed.length > 120) {
+        return NextResponse.json({ error: 'Receiver name is too long' }, { status: 400 });
+      }
+      updateData.receiver_name = trimmed;
+    }
+
+    // Optional: update weight (kg)
+    if (weightKg !== undefined) {
+      if (weightKg === null) {
+        updateData.weight = null;
+      } else {
+        const num = Number(weightKg);
+        if (!Number.isFinite(num) || num <= 0 || num > 100000) {
+          return NextResponse.json({ error: 'Invalid weight' }, { status: 400 });
+        }
+        updateData.weight = num;
+      }
     }
 
     // Update shipment

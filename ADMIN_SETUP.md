@@ -108,30 +108,30 @@ After a user signs up, an existing admin can change their role:
 
 ## Admin Features
 
-### Dashboard (`/admin/dashboard`)
+### Dashboard (`/superAdmin/dashboard`)
 - Overview statistics (total shipments, active shipments, users, admins)
 - Recent shipments list
 - Quick access to all admin functions
 
-### Shipment Management (`/admin/shipments`)
+### Shipment Management (Dashboard section)
 - View all shipments across the platform
 - Search and filter by tracking number or status
 - Update shipment statuses in real-time
 - Pagination for large datasets
 
-### User Management (`/admin/users`)
+### User Management (`/superAdmin/users`)
 - View all registered users
 - Search by email or name
 - Change user roles (User ↔ Admin)
 - View user statistics (shipment counts, last sign-in)
 
-### Analytics (`/admin/analytics`)
+### Analytics (`/superAdmin/analytics`)
 - Shipment trends over the last 7 days
 - Status distribution charts
 - Popular shipping routes
 - Platform usage insights
 
-### Settings (`/admin/settings`)
+### Settings (`/superAdmin/settings`)
 - Configure company information
 - Set default delivery parameters
 - Enable/disable notifications
@@ -139,10 +139,12 @@ After a user signs up, an existing admin can change their role:
 
 ## Automatic Routing
 
-The middleware automatically handles admin routing:
+Routing is handled by the Next.js proxy logic:
 
-- **Admin users** are redirected from `/dashboard` to `/admin/dashboard`
-- **Regular users** are blocked from accessing `/admin/*` routes
+- `/admin/*` routes redirect/wrap to `/superAdmin/*` (for backwards compatibility)
+
+- **Admin/SuperAdmin users** are redirected from `/dashboard` to `/superAdmin/dashboard`
+- **Regular users** are blocked from accessing `/admin/*` and `/superAdmin/*` routes
 - **Unauthenticated users** are redirected to sign-in when accessing protected routes
 
 ## API Endpoints
@@ -170,7 +172,7 @@ Admin users will see an "Admin Panel" link in their sidebar navigation. Regular 
 ## Testing the Admin System
 
 1. Sign up with `officialsunnyugwu@gmail.com` to create an admin account (this email is automatically assigned admin role)
-2. Sign in and verify you're redirected to `/admin/dashboard`
+2. Sign in and verify you're redirected to `/superAdmin/dashboard` (or that `/admin/dashboard` forwards to it)
 3. Test all admin features
 4. Create a regular user account to verify they can't access admin routes
 5. Test the admin panel link appears only for admin users
@@ -188,5 +190,5 @@ Admin users will see an "Admin Panel" link in their sidebar navigation. Regular 
 
 ### Routing issues
 - Clear browser cache and cookies
-- Check middleware.ts is in the root directory
+- Check proxy.ts routing logic
 - Verify Next.js configuration

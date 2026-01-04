@@ -58,12 +58,34 @@ export default function NewShipmentPage() {
   const [formData, setFormData] = useState({
     senderName: '',
     receiverName: '',
+    receiverPhone: '',
     itemsDescription: '',
     weight: '',
     originLocation: '',
     destination: '',
     shipmentDate: '', // NEW FIELD
   });
+
+  const normalizePhone = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    // Keep digits and a single leading '+' only
+    let normalized = trimmed.replace(/[^0-9+]/g, '');
+    if (normalized.includes('+') && !normalized.startsWith('+')) {
+      normalized = normalized.replace(/\+/g, '');
+    }
+    if (normalized.startsWith('+')) {
+      normalized = '+' + normalized.slice(1).replace(/\+/g, '');
+    }
+    return normalized;
+  };
+
+  const isValidPhone = (value: string) => {
+    const v = normalizePhone(value);
+    // Conservative E.164-ish check: optional '+' then 7..15 digits
+    return /^\+?\d{7,15}$/.test(v);
+  };
 
   const [packageImage, setPackageImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -123,6 +145,8 @@ export default function NewShipmentPage() {
       const newErrors: Record<string, string> = {};
       if (!formData.senderName.trim()) newErrors.senderName = 'Sender name is required';
       if (!formData.receiverName.trim()) newErrors.receiverName = 'Receiver name is required';
+      if (!formData.receiverPhone.trim()) newErrors.receiverPhone = 'Receiver phone number is required';
+      else if (!isValidPhone(formData.receiverPhone)) newErrors.receiverPhone = 'Enter a valid phone number (digits, optional +)';
       if (!formData.itemsDescription.trim()) newErrors.itemsDescription = 'Items description is required';
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
@@ -162,6 +186,10 @@ export default function NewShipmentPage() {
         user_id: user.id,
         sender_name: formData.senderName,
         receiver_name: formData.receiverName,
+        receiver_contact: {
+          phone: normalizePhone(formData.receiverPhone),
+        },
+        receiver_phone: normalizePhone(formData.receiverPhone),
         items_description: formData.itemsDescription,
         weight: formData.weight ? parseFloat(String(formData.weight)) : null,
         origin_location: formData.originLocation,
@@ -215,6 +243,7 @@ export default function NewShipmentPage() {
       setFormData({
         senderName: '',
         receiverName: '',
+        receiverPhone: '',
         itemsDescription: '',
         weight: '',
         originLocation: '',
@@ -235,6 +264,7 @@ export default function NewShipmentPage() {
   const isFormValid =
     Boolean(formData.senderName.trim()) &&
     Boolean(formData.receiverName.trim()) &&
+    Boolean(formData.receiverPhone.trim()) &&
     Boolean(formData.itemsDescription.trim()) &&
     Boolean(String(formData.weight).trim()) &&
     Boolean(formData.originLocation.trim()) &&
@@ -286,6 +316,30 @@ export default function NewShipmentPage() {
                 />
                 {errors.receiverName && <p className="mt-1.5 text-xs text-red-600">{errors.receiverName}</p>}
               </div>
+            </div>
+
+            {/* Receiver Phone */}
+            <div className="mb-4">
+              <label className="block text-[13px] font-medium text-gray-700 mb-2">Receiver&apos;s Phone Number</label>
+              <input
+                type="tel"
+                name="receiverPhone"
+                value={formData.receiverPhone}
+                onChange={(e) => {
+                  // live-normalize lightly while typing (don’t block input)
+                  setFormData((prev) => ({ ...prev, receiverPhone: e.target.value }));
+                }}
+                onBlur={() => {
+                  setFormData((prev) => ({ ...prev, receiverPhone: normalizePhone(prev.receiverPhone) }));
+                }}
+                placeholder="e.g., +2348012345678"
+                inputMode="tel"
+                autoComplete="tel"
+                className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  errors.receiverPhone ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              {errors.receiverPhone && <p className="mt-1.5 text-xs text-red-600">{errors.receiverPhone}</p>}
             </div>
 
             {/* Items Description, Weight, Tracking ID */}

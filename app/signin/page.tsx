@@ -75,8 +75,11 @@ export default function SignInPage() {
     if (contentType.includes("application/json")) {
       const data = await res.json();
       const userRole = data.user?.role || 'user';
-      if (userRole === 'admin') {
-        toast.success("Welcome back, Admin!");
+      if (userRole === 'super_admin') {
+        toast.success("Welcome back, SuperAdmin!");
+        router.push("/superAdmin/dashboard");
+      } else if (userRole === 'admin') {
+        toast.success("Welcome back!");
         router.push("/admin/dashboard");
       } else {
         toast.success("Signed in successfully.");
@@ -88,9 +91,6 @@ export default function SignInPage() {
       router.push("/dashboard");
     }
   };
-
-  const handleGoogle = () => {};
-  const handleApple = () => {};
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white">
@@ -111,7 +111,7 @@ export default function SignInPage() {
       <div className="w-full flex items-center justify-center py-8 px-4 sm:px-8 lg:w-[50%]">
         <div className="w-full max-w-[602px] sm:rounded-2xl sm:shadow-md sm:border sm:border-[#E6E7EB] bg-white p-4 sm:p-8">
           {/* LOGO */}
-          <div className="flex justify-center lg:justify-start mb-4 lg:mb-0 -ml-0 lg:-ml-9">
+          <div className="flex justify-center lg:justify-start mb-4 lg:mb-0 ml-0 lg:-ml-9">
             <Image
               src="/logo.png"
               alt="Logistics Pro Logo"
@@ -157,7 +157,7 @@ export default function SignInPage() {
                 </svg>
 
                 <input
-                  className={`w-full pl-11 pr-4 h-[44px] text-[14px] bg-white border rounded-[10px] transition-all focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+                  className={`w-full pl-11 pr-4 h-11 text-[14px] bg-white border rounded-[10px] transition-all focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
                     errors.email
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300"
@@ -196,7 +196,7 @@ export default function SignInPage() {
                 </svg>
 
                 <input
-                  className={`w-full pl-11 pr-12 h-[44px] text-[14px] border rounded-[10px] transition-all focus:ring-2 focus:ring-orange-500 ${
+                  className={`w-full pl-11 pr-12 h-11 text-[14px] border rounded-[10px] transition-all focus:ring-2 focus:ring-orange-500 ${
                     errors.password
                       ? "border-red-300 bg-red-50"
                       : "border-gray-300"
@@ -303,16 +303,7 @@ export default function SignInPage() {
           {/* SOCIAL BUTTONS */}
          
 
-          {/* SIGN UP LINK */}
-          <p className="mt-8 text-center text-[14px] text-gray-600">
-            Don’t have an account?{" "}
-            <Link
-              href="/signup"
-              className="text-orange-500 font-semibold hover:text-orange-600"
-            >
-              Sign Up
-            </Link>
-          </p>
+          {/* Sign up disabled: accounts are provisioned by SuperAdmin */}
         </div>
       </div>
     </div>

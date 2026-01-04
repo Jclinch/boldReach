@@ -14,8 +14,11 @@ interface ShipmentRow {
   id: string;
   tracking_number?: string;
   trackingNumber?: string;
+  origin_location?: string;
   destination?: string;
   delivery_location?: string;
+  receiver_phone?: string;
+  receiver_contact?: { phone?: string } | null;
   items_description?: string;
   itemsDescription?: string;
   status?: string;
@@ -32,6 +35,7 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [userLocation, setUserLocation] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
@@ -47,11 +51,31 @@ export default function HistoryPage() {
           return;
         }
 
+        // Load user's location (used to filter shipment history)
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('location')
+          .eq('id', user.id)
+          .single();
+
+        const location = (profile?.location || '').toString().trim();
+        if (isMounted) setUserLocation(location);
+
+        if (profileError || !location) {
+          // Without a location we cannot scope shipments safely.
+          if (isMounted) setShipments([]);
+          setIsLoading(false);
+          return;
+        }
+
         // Build base query (shared history: show shipments from all users)
         let query = supabase
           .from('shipments')
           .select('*')
           .order('created_at', { ascending: false });
+
+        // Only show shipments sent from or to the user's location
+        query = query.or(`origin_location.eq.${location},destination.eq.${location}`);
 
         // Apply status filter
         if (filterStatus !== 'all') {
@@ -167,10 +191,15 @@ export default function HistoryPage() {
 
   // normalize each row to the fields our UI uses
   const normalize = (row: ShipmentRow) => {
+    const receiverPhone =
+      (row.receiver_phone || row.receiver_contact?.phone || '').toString();
+
     return {
       id: row.id,
       trackingNumber: (row.trackingNumber || row.tracking_number || '').toString(),
+      origin: (row.origin_location || '').toString(),
       destination: (row.destination || row.delivery_location || '').toString(),
+      receiverPhone,
       description: (row.itemsDescription || row.items_description || '').toString(),
       status: (row.status || '').toString(),
       dateTime: (row.shipment_date || row.latest_event_time || row.createdAt || row.created_at || '').toString(), // Prefer shipment_date
@@ -183,7 +212,9 @@ export default function HistoryPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Logistics History</h1>
-          <p className="text-[#475569]">View and manage all shipments</p>
+          <p className="text-[#475569]">
+            {userLocation ? `Showing shipments from/to ${userLocation}` : 'Showing shipments from/to your location'}
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -260,7 +291,9 @@ export default function HistoryPage() {
                 onClick={() => {
                   const csvHeaders = [
                     'Tracking ID',
+                    'Origin Location',
                     'Destination',
+                    'Receiver Phone',
                     'Description',
                     'Status',
                     'Date Sent',
@@ -270,7 +303,9 @@ export default function HistoryPage() {
                     const row = normalize(s);
                     csvRows.push([
                       `"${row.trackingNumber}"`,
+                      `"${row.origin}"`,
                       `"${row.destination}"`,
+                      `"${row.receiverPhone}"`,
                       `"${row.description}"`,
                       `"${getStatusLabel(row.status)}"`,
                       `"${row.dateTime}"`,
@@ -295,12 +330,14 @@ export default function HistoryPage() {
             <div className="rounded-md shadow-sm hidden sm:block">
               <div className="overflow-x-auto">
                 <div className="min-w-[600px] lg:min-w-0">
-                  <div className="bg-[#0F2940] text-white grid grid-cols-5 gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium">
+                  <div className="bg-[#0F2940] text-white grid grid-cols-7 gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium">
                     <div>Tracking ID</div>
+                    <div>Origin</div>
                     <div>Destination</div>
+                    <div>Receiver Phone</div>
                     <div>Description</div>
                     <div>Status</div>
-                    <div className="text-right">Date/Time</div>
+                    <div className="text-right">Date / Print</div>
                   </div>
                   {/* rows */}
                   <div className="bg-white divide-y divide-gray-100">
@@ -309,16 +346,28 @@ export default function HistoryPage() {
                       return (
                         <div
                           key={row.id}
-                          className="grid grid-cols-5 gap-4 items-center px-4 sm:px-6 py-4 sm:py-6 text-xs sm:text-sm"
+                          className="grid grid-cols-7 gap-4 items-center px-4 sm:px-6 py-4 sm:py-6 text-xs sm:text-sm"
                         >
                           <div className="font-semibold text-[#0F2940] wrap-break-word">{row.trackingNumber || '—'}</div>
+                          <div className="text-[#475569] wrap-break-word">{row.origin || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.destination || '—'}</div>
+                          <div className="text-[#475569] wrap-break-word">{row.receiverPhone || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.description || '—'}</div>
                           <div>
                             <Badge variant={getStatusBadgeVariant(row.status)}>{getStatusLabel(row.status)}</Badge>
                           </div>
-                          <div className="text-right text-[#94A3B8] whitespace-nowrap">
-                            {formatDateTime(row.dateTime)}
+                          <div className="text-right whitespace-nowrap">
+                            <div className="text-[#94A3B8]">{formatDateTime(row.dateTime)}</div>
+                            <button
+                              type="button"
+                              className="mt-2 inline-flex items-center justify-center rounded-md border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#0F2940] hover:bg-[#F8FAFC]"
+                              onClick={() => {
+                                const url = `/dashboard/history/print/${row.id}`;
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                              }}
+                            >
+                              Print
+                            </button>
                           </div>
                         </div>
                       );
@@ -343,12 +392,33 @@ export default function HistoryPage() {
                       <div className="font-semibold text-[#0F2940] wrap-break-word text-sm">{row.trackingNumber || '—'}</div>
                     </div>
                     <div>
+                      <div className="text-xs text-[#475569]">Origin</div>
+                      <div className="text-[#475569] wrap-break-word text-sm">{row.origin || '—'}</div>
+                    </div>
+                    <div>
                       <div className="text-xs text-[#475569]">Destination</div>
                       <div className="text-[#475569] wrap-break-word text-sm">{row.destination || '—'}</div>
                     </div>
                     <div>
+                      <div className="text-xs text-[#475569]">Receiver Phone</div>
+                      <div className="text-[#475569] wrap-break-word text-sm">{row.receiverPhone || '—'}</div>
+                    </div>
+                    <div>
                       <div className="text-xs text-[#475569]">Description</div>
                       <div className="text-[#475569] wrap-break-word text-sm">{row.description || '—'}</div>
+                    </div>
+
+                    <div className="pt-2">
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => {
+                          const url = `/dashboard/history/print/${row.id}`;
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
+                      >
+                        Print
+                      </Button>
                     </div>
                   </div>
                 );
