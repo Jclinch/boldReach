@@ -70,21 +70,22 @@ export default function NewShipmentPage() {
     const trimmed = value.trim();
     if (!trimmed) return '';
 
-    // Keep digits and a single leading '+' only
-    let normalized = trimmed.replace(/[^0-9+]/g, '');
-    if (normalized.includes('+') && !normalized.startsWith('+')) {
-      normalized = normalized.replace(/\+/g, '');
+    // Only keep digits.
+    let normalized = trimmed.replace(/\D/g, '');
+
+    // If user entered country code format (e.g. +2348012345678 or 2348012345678)
+    // convert to local 11-digit format (e.g. 08012345678).
+    if (normalized.startsWith('234') && normalized.length === 13) {
+      normalized = '0' + normalized.slice(3);
     }
-    if (normalized.startsWith('+')) {
-      normalized = '+' + normalized.slice(1).replace(/\+/g, '');
-    }
+
     return normalized;
   };
 
   const isValidPhone = (value: string) => {
     const v = normalizePhone(value);
-    // Conservative E.164-ish check: optional '+' then 7..15 digits
-    return /^\+?\d{7,15}$/.test(v);
+    // Local format only: exactly 11 digits (e.g. 08012345678)
+    return /^\d{11}$/.test(v);
   };
 
   const [packageImage, setPackageImage] = useState<File | null>(null);
@@ -148,9 +149,7 @@ export default function NewShipmentPage() {
       if (!formData.senderName.trim()) newErrors.senderName = 'Sender name is required';
       if (!formData.receiverName.trim()) newErrors.receiverName = 'Receiver name is required';
       if (!formData.receiverPhone.trim()) newErrors.receiverPhone = 'Receiver phone number is required';
-      else if (!/^\+?\d{7,15}$/.test(normalizedReceiverPhone)) {
-        newErrors.receiverPhone = 'Enter a valid phone number (digits, optional +)';
-      }
+      else if (!isValidPhone(formData.receiverPhone)) newErrors.receiverPhone = 'Enter a valid 11-digit phone number (e.g., 08012345678)';
       if (!formData.itemsDescription.trim()) newErrors.itemsDescription = 'Items description is required';
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
@@ -216,7 +215,17 @@ export default function NewShipmentPage() {
         .single();
 
       if (insertError) {
-        toast.error(insertError.message || 'Failed to create shipment');
+        const msg = insertError.message || 'Failed to create shipment';
+
+        if (msg.includes('shipments_receiver_phone_format')) {
+          setErrors((prev) => ({
+            ...prev,
+            receiverPhone: `Invalid phone number. Use 11 digits (e.g., 08012345678). Your number becomes: ${normalizedReceiverPhone}`,
+          }));
+          toast.error('Invalid receiver phone number');
+        } else {
+          toast.error(msg);
+        }
         setIsLoading(false);
         return;
       }
@@ -336,7 +345,7 @@ export default function NewShipmentPage() {
                 onBlur={() => {
                   setFormData((prev) => ({ ...prev, receiverPhone: normalizePhone(prev.receiverPhone) }));
                 }}
-                placeholder="e.g., +2348012345678"
+                placeholder="e.g., 08012345678"
                 inputMode="tel"
                 autoComplete="tel"
                 className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
