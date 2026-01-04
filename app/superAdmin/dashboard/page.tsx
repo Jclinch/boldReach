@@ -24,6 +24,8 @@ interface ShipmentRow {
 	items_description?: string;
 	itemsDescription?: string;
 	description?: string;
+	weight?: number | string | null;
+	delivered_at?: string | null;
 	status?: string;
 	shipment_date?: string;
 	created_at?: string;
@@ -44,6 +46,8 @@ interface NormalizedShipment {
 	receiverPhone: string;
 	description: string;
 	destination: string;
+	weightKg: string;
+	deliveredAt: string;
 	shipmentDate: string;
 	createdAt: string;
 }
@@ -110,8 +114,8 @@ export default function AdminDashboard() {
 		};
 
 		const headers = isSuperAdminArea
-			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Status', 'Shipment Date']
-			: ['Tracking ID', 'Destination', 'Description', 'Status', 'Shipment Date'];
+			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date']
+			: ['Tracking ID', 'Destination', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date'];
 		const rows = shipments.map((s) =>
 			isSuperAdminArea
 				? [
@@ -120,15 +124,19 @@ export default function AdminDashboard() {
 						csvEscape(s.destination),
 						csvEscape(s.receiverPhone),
 						csvEscape(s.description),
+						csvEscape(s.weightKg),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
+						csvEscape(formatDateOnly(s.deliveredAt)),
 					]
 				: [
 						csvEscape(s.trackingNumber),
 						csvEscape(s.destination),
 						csvEscape(s.description),
+						csvEscape(s.weightKg),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
+						csvEscape(formatDateOnly(s.deliveredAt)),
 					]
 		);
 
@@ -191,6 +199,8 @@ export default function AdminDashboard() {
 			progressStep: displayStatus,
 			senderName: (row.senderName || row.sender_name || '').toString(),
 			receiverPhone: (row.receiver_phone || row.receiver_contact?.phone || '').toString(),
+			weightKg: row.weight === null || row.weight === undefined ? '' : String(row.weight),
+			deliveredAt: (row.delivered_at || '').toString(),
 			shipmentDate: (row.shipment_date || '').toString(),
 			createdAt: (row.createdAt || row.created_at || row.latest_event_time || '').toString(),
 		};

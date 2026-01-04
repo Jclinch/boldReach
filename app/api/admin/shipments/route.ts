@@ -6,6 +6,18 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
+type ShipmentListRow = {
+  id: string;
+  status: string | null;
+  progress_step: string | null;
+  [key: string]: unknown;
+};
+
+type DeliveredEventRow = {
+  shipment_id: string;
+  event_time: string;
+};
+
 function getServiceRoleKey() {
   return (
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -119,10 +131,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch shipments' }, { status: 500 });
     }
 
+    // Attach delivered_at (date/time when status was marked delivered) using shipment_events.
+    // We intentionally compute this server-side so CSV exports can include it without N+1 client queries.
+    const shipmentList: ShipmentListRow[] = Array.isArray(shipments) ? (shipments as ShipmentListRow[]) : [];
+    const deliveredIds = shipmentList
+      .filter((s) => String(s.status || '').toLowerCase() === 'delivered' || String(s.progress_step || '').toLowerCase() === 'delivered')
+      .map((s) => s.id)
+      .filter(Boolean);
+
+    const deliveredAtByShipmentId: Record<string, string> = {};
+    if (deliveredIds.length > 0) {
+      const { data: deliveredEvents, error: deliveredEventsError } = await supabaseAdmin
+        .from('shipment_events')
+        .select('shipment_id,event_time')
+        .in('shipment_id', deliveredIds)
+        .eq('event_type', 'delivered')
+        .order('event_time', { ascending: false });
+
+      if (deliveredEventsError) {
+        console.warn('Failed to fetch delivered events:', deliveredEventsError);
+      } else {
+        // Because we ordered DESC, the first time we see a shipment_id is its latest delivered timestamp.
+        for (const ev of (deliveredEvents || []) as DeliveredEventRow[]) {
+          const sid = ev.shipment_id;
+          const t = ev.event_time;
+          if (sid && t && !deliveredAtByShipmentId[sid]) deliveredAtByShipmentId[sid] = t;
+        }
+      }
+    }
+
+    const shipmentsWithDeliveredAt = shipmentList.map((s) => ({
+      ...s,
+      delivered_at: deliveredAtByShipmentId[s.id] || null,
+    }));
+
     const totalPages = all ? 1 : Math.ceil((count || 0) / limit);
 
     return NextResponse.json({
-      shipments: shipments || [],
+      shipments: shipmentsWithDeliveredAt,
       totalPages,
       currentPage: page,
       totalCount: count || 0,

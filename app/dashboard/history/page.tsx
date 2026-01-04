@@ -21,6 +21,7 @@ interface ShipmentRow {
   receiver_contact?: { phone?: string } | null;
   items_description?: string;
   itemsDescription?: string;
+  weight?: number | string | null;
   status?: string;
   shipment_date?: string;
   created_at?: string;
@@ -288,29 +289,68 @@ export default function HistoryPage() {
             <div>
               <Button
                 className="mb-2 bg-[#F97316] text-white px-4 py-2 rounded-md"
-                onClick={() => {
+                onClick={async () => {
+                  const csvEscape = (value: unknown) => {
+                    const s = (value ?? '').toString();
+                    if (/[\n\r",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+                    return s;
+                  };
+
+                  const ids = shipments
+                    .filter((s) => (s.status || '').toString().toLowerCase() === 'delivered')
+                    .map((s) => s.id)
+                    .filter(Boolean);
+
+                  let deliveredAtById: Record<string, string> = {};
+                  try {
+                    if (ids.length > 0) {
+                      const res = await fetch('/api/shipments/delivery-dates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ shipmentIds: ids }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        deliveredAtById = (data?.deliveredAtById || {}) as Record<string, string>;
+                      }
+                    }
+                  } catch {
+                    // If delivery dates fail, export still proceeds with blank delivery date.
+                  }
+
                   const csvHeaders = [
                     'Tracking ID',
                     'Origin Location',
                     'Destination',
                     'Receiver Phone',
                     'Description',
+                    'Weight (kg)',
                     'Status',
                     'Date Sent',
+                    'Delivery Date',
                   ];
                   const csvRows = [csvHeaders.join(',')];
-                  shipments.forEach(s => {
+
+                  shipments.forEach((s) => {
                     const row = normalize(s);
-                    csvRows.push([
-                      `"${row.trackingNumber}"`,
-                      `"${row.origin}"`,
-                      `"${row.destination}"`,
-                      `"${row.receiverPhone}"`,
-                      `"${row.description}"`,
-                      `"${getStatusLabel(row.status)}"`,
-                      `"${row.dateTime}"`,
-                    ].join(','));
+                    const deliveryDate = deliveredAtById[s.id] ? formatDateTime(deliveredAtById[s.id]) : '';
+                    const weightKg = s.weight === null || s.weight === undefined ? '' : String(s.weight);
+
+                    csvRows.push(
+                      [
+                        csvEscape(row.trackingNumber),
+                        csvEscape(row.origin),
+                        csvEscape(row.destination),
+                        csvEscape(row.receiverPhone),
+                        csvEscape(row.description),
+                        csvEscape(weightKg),
+                        csvEscape(getStatusLabel(row.status)),
+                        csvEscape(row.dateTime),
+                        csvEscape(deliveryDate),
+                      ].join(',')
+                    );
                   });
+
                   const csvContent = csvRows.join('\n');
                   const blob = new Blob([csvContent], { type: 'text/csv' });
                   const url = window.URL.createObjectURL(blob);

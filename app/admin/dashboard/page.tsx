@@ -17,6 +17,8 @@ interface ShipmentRow {
 	items_description?: string;
 	itemsDescription?: string;
 	description?: string;
+	weight?: number | string | null;
+	delivered_at?: string | null;
 	status?: string;
 	progress_step?: string;
 	shipment_date?: string;
@@ -31,6 +33,8 @@ interface NormalizedShipment {
 	destination: string;
 	receiverPhone: string;
 	description: string;
+	weightKg: string;
+	deliveredAt: string;
 	status: string;
 	progressStep: string;
 	shipmentDate: string;
@@ -130,6 +134,8 @@ export default function AdminDashboard() {
 			destination: (row.destination || row.delivery_location || '').toString(),
 			receiverPhone: (row.receiver_phone || row.receiver_contact?.phone || '').toString(),
 			description: (row.items_description || row.itemsDescription || row.description || '').toString(),
+			weightKg: row.weight === null || row.weight === undefined ? '' : String(row.weight),
+			deliveredAt: (row.delivered_at || '').toString(),
 			status,
 			progressStep: displayStatus,
 			shipmentDate: (row.shipment_date || '').toString(),
@@ -155,11 +161,13 @@ export default function AdminDashboard() {
 			csvEscape(s.destination),
 			csvEscape(s.receiverPhone),
 			csvEscape(s.description),
+			csvEscape(s.weightKg),
 			csvEscape(getStatusLabel(s.progressStep)),
 			csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
+			csvEscape(formatDateOnly(s.deliveredAt)),
 		]);
 
-		const csvHeaders = ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Status', 'Shipment Date'];
+		const csvHeaders = ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date'];
 		const csv = [csvHeaders.join(','), ...rows.map((r) => r.join(','))].join('\n');
 		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
 		const url = window.URL.createObjectURL(blob);
