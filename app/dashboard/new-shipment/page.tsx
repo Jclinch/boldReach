@@ -141,12 +141,16 @@ export default function NewShipmentPage() {
     setIsLoading(true);
 
     try {
+      const normalizedReceiverPhone = normalizePhone(formData.receiverPhone);
+
       // Basic client-side validation
       const newErrors: Record<string, string> = {};
       if (!formData.senderName.trim()) newErrors.senderName = 'Sender name is required';
       if (!formData.receiverName.trim()) newErrors.receiverName = 'Receiver name is required';
       if (!formData.receiverPhone.trim()) newErrors.receiverPhone = 'Receiver phone number is required';
-      else if (!isValidPhone(formData.receiverPhone)) newErrors.receiverPhone = 'Enter a valid phone number (digits, optional +)';
+      else if (!/^\+?\d{7,15}$/.test(normalizedReceiverPhone)) {
+        newErrors.receiverPhone = 'Enter a valid phone number (digits, optional +)';
+      }
       if (!formData.itemsDescription.trim()) newErrors.itemsDescription = 'Items description is required';
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
@@ -187,9 +191,9 @@ export default function NewShipmentPage() {
         sender_name: formData.senderName,
         receiver_name: formData.receiverName,
         receiver_contact: {
-          phone: normalizePhone(formData.receiverPhone),
+          phone: normalizedReceiverPhone,
         },
-        receiver_phone: normalizePhone(formData.receiverPhone),
+        receiver_phone: normalizedReceiverPhone,
         items_description: formData.itemsDescription,
         weight: formData.weight ? parseFloat(String(formData.weight)) : null,
         origin_location: formData.originLocation,
