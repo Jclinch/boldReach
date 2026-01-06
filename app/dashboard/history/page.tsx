@@ -37,6 +37,7 @@ export default function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [userLocation, setUserLocation] = useState<string>('');
+  const [locationMissing, setLocationMissing] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,12 +63,8 @@ export default function HistoryPage() {
         const location = (profile?.location || '').toString().trim();
         if (isMounted) setUserLocation(location);
 
-        if (profileError || !location) {
-          // Without a location we cannot scope shipments safely.
-          if (isMounted) setShipments([]);
-          setIsLoading(false);
-          return;
-        }
+        const hasLocation = !profileError && Boolean(location);
+        if (isMounted) setLocationMissing(!hasLocation);
 
         // Build base query (shared history: show shipments from all users)
         let query = supabase
@@ -75,8 +72,13 @@ export default function HistoryPage() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        // Only show shipments sent from or to the user's location
-        query = query.or(`origin_location.eq.${location},destination.eq.${location}`);
+        if (hasLocation) {
+          // Only show shipments sent from or to the user's location
+          query = query.or(`origin_location.eq.${location},destination.eq.${location}`);
+        } else {
+          // Fallback: if the user's profile/location isn't set, at least show shipments they created.
+          query = query.eq('user_id', user.id);
+        }
 
         // Apply status filter
         if (filterStatus !== 'all') {
@@ -214,7 +216,11 @@ export default function HistoryPage() {
         <div>
           <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Logistics History</h1>
           <p className="text-[#475569]">
-            {userLocation ? `Showing shipments from/to ${userLocation}` : 'Showing shipments from/to your location'}
+            {locationMissing
+              ? 'Your location is not set. Showing only shipments you created.'
+              : userLocation
+                ? `Showing shipments from/to ${userLocation}`
+                : 'Showing shipments from/to your location'}
           </p>
         </div>
 
