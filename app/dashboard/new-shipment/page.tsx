@@ -4,9 +4,10 @@
 // // Pixel Perfect New Shipment Page matching Figma design
 // // ============================================
 
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { createClient } from '@/utils/supabase/client';
@@ -21,39 +22,33 @@ export default function NewShipmentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const LOCATION_OPTIONS = [
-  "ASC-M-Darigo Communication 03 LTD-Lafia",
-  "ASC-M-Carosammy Concept Ltd-Benue",
-  "ASC-M-Crescita Global Resources Ltd-Adamawa",
-  "ASC-M-Don-Yellow Tech-Borno",
-  "ASC-M-Midas touch-Jos",
-  "ASC-M-Midas Touch-Kaduna",
-  "ASC-M-Zikniks-Maiduguri-Maiduguri",
-  "ASC-M-Zikniks-Minna-Minna",
-  "ASC-M-Zikniks-Suleja",
-  "ASRP ELOHIM GADGETS-Abuja",
-  "OSC-Carlcare-Abuja",
-  "OSC-Carlcare-Kano",
-  "CP-Abdul Hisbah Communication LTD-Damaturu",
-  "CP-Dynasteia Gwagwalada-Abuja",
-  "CP-Easy Way Comm (Anyigba)-Kogi",
-  "Cp-Jibo Ventures-Zamfara",
-  "CP-Excel phones idah-Kogi",
-  "ASC-M-Jufel-Tech Communications Ltd-Nasarawa",
-  "ASC-M-Magic Brother-Abuja",
-  "CP-May Royal Communication-Otukpo",
-  "ASC-M-Midas Touch Sokoto-Sokoto",
-  "CP-MOSIE SOLID HUB-Kuje",
-  "CP-Ndubest-Benue",
-  "ASC-M-Reedlim Global Enterprise-Bauchi",
-  "ASC-M-Reedlim Global Enterprise-Gombe",
-  "ASC-M-SmartPhone Global-Katsina",
-  "ASC-M-Smartphone Global Sensible-Duste",
-  "ASC-M-Smartphone Global Sensible-Funtua",
-  "ASC-M-Switrat limited-Mubi",
-  "ASC-M-Ustaz Exclusive Store-Jalingo",
-  "ASC-M-Yisab Nig. Ltd. (Lokoja)-Kogi"
-];
+	const [locationOptions, setLocationOptions] = useState<string[]>([]);
+	const [locationsLoading, setLocationsLoading] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			setLocationsLoading(true);
+			try {
+				const res = await fetch('/api/locations');
+				const data: unknown = await res.json().catch(() => ({}));
+				if (!res.ok) {
+					if (!cancelled) setLocationOptions([]);
+					return;
+				}
+				const list = (data as { locations?: Array<{ name?: string }> } | null)?.locations || [];
+				const names = list.map((l) => (l?.name ?? '').toString()).filter(Boolean);
+				if (!cancelled) setLocationOptions(names);
+			} catch {
+				if (!cancelled) setLocationOptions([]);
+			} finally {
+				if (!cancelled) setLocationsLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -499,11 +494,12 @@ export default function NewShipmentPage() {
                   }`}
                 >
                   <option value="">Select Origin</option>
-                  {LOCATION_OPTIONS.map((loc) => (
+                  {locationOptions.map((loc) => (
                     <option key={loc} value={loc}>{loc}</option>
                   ))}
                 </select>
                 {errors.originLocation && <p className="mt-1.5 text-xs text-red-600">{errors.originLocation}</p>}
+                {locationsLoading ? <p className="mt-1.5 text-xs text-gray-400">Loading locations…</p> : null}
               </div>
 
               <div>
@@ -517,11 +513,12 @@ export default function NewShipmentPage() {
                   }`}
                 >
                   <option value="">Select Destination</option>
-                  {LOCATION_OPTIONS.map((loc) => (
+                  {locationOptions.map((loc) => (
                     <option key={loc} value={loc}>{loc}</option>
                   ))}
                 </select>
                 {errors.destination && <p className="mt-1.5 text-xs text-red-600">{errors.destination}</p>}
+                {locationsLoading ? <p className="mt-1.5 text-xs text-gray-400">Loading locations…</p> : null}
               </div>
             </div>
 

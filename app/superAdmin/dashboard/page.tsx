@@ -212,7 +212,14 @@ export default function AdminDashboard() {
 			if (showLoading) setShipmentsLoading(true);
 			try {
 				const params = new URLSearchParams();
-				params.set('limit', '20');
+				// SuperAdmin shipment management should show all shipments.
+				// We request the API in "all" mode and apply a generous cap.
+				if (isSuperAdminArea) {
+					params.set('all', '1');
+					params.set('limit', '5000');
+				} else {
+					params.set('limit', '20');
+				}
 				if (search.trim()) params.set('search', search.trim());
 				if (statusFilter !== 'all') params.set('status', statusFilter);
 
@@ -232,8 +239,37 @@ export default function AdminDashboard() {
 				if (showLoading) setShipmentsLoading(false);
 			}
 		},
-		[search, statusFilter]
+		[isSuperAdminArea, search, statusFilter]
 	);
+
+	const [isDeleting, setIsDeleting] = useState(false);
+
+	const handleDeleteShipment = async () => {
+		if (!isSuperAdminArea) return;
+		if (!selectedShipment) return;
+
+		const tracking = selectedShipment.trackingNumber || selectedShipment.id;
+		const ok = window.confirm(`Delete shipment ${tracking}? This cannot be undone.`);
+		if (!ok) return;
+
+		setIsDeleting(true);
+		try {
+			const res = await fetch(`/api/admin/shipments/${selectedShipment.id}`, { method: 'DELETE' });
+			if (res.ok) {
+				setShipments((prev) => prev.filter((s) => s.id !== selectedShipment.id));
+				toast.success('Shipment deleted');
+				closeModal();
+			} else {
+				const err = await res.json().catch(() => ({}));
+				toast.error((err as { error?: string } | null)?.error || 'Failed to delete shipment');
+			}
+		} catch (e) {
+			console.error('Failed to delete shipment:', e);
+			toast.error('Failed to delete shipment');
+		} finally {
+			setIsDeleting(false);
+		}
+	};
 
 	// Fetch shipments when search or filter changes (with debounce)
 	useEffect(() => {
@@ -860,7 +896,19 @@ export default function AdminDashboard() {
 
 									{/* RIGHT — Update Status */}
 									<div className="border border-[#E5E7EB] rounded-xl p-6 flex flex-col">
-										<h3 className="text-lg font-semibold text-[#1F2937] mb-6">Update Status</h3>
+										<div className="flex items-start justify-between gap-4 mb-6">
+											<h3 className="text-lg font-semibold text-[#1F2937]">Update Status</h3>
+											{isSuperAdminArea ? (
+												<Button
+													variant="secondary"
+													onClick={handleDeleteShipment}
+													disabled={isDeleting || isUpdating}
+													className="border border-red-900 text-red-100 bg-red-500 hover:bg-red-50 hover:text-red-500"
+												>
+													{isDeleting ? 'Deleting…' : 'Delete Shipment'}
+												</Button>
+											) : null}
+										</div>
 
 										{/* Status */}
 										<label className="text-sm mb-1 text-gray-600">New Status</label>

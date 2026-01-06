@@ -4,6 +4,15 @@
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+
+function getServiceRoleKey() {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
+    ''
+  );
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -122,6 +131,71 @@ export async function PATCH(
     return NextResponse.json({ message: 'Shipment updated successfully' });
   } catch (error) {
     console.error('Admin shipment update error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createClient(cookies());
+    const { id } = await params;
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const serviceRoleKey = getServiceRoleKey();
+    if (!serviceRoleKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      serviceRoleKey
+    );
+
+    // SuperAdmin only
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || userData?.role !== 'super_admin') {
+      return NextResponse.json({ error: 'SuperAdmin access required' }, { status: 403 });
+    }
+
+    // Best-effort cleanup of dependent rows (if no FK cascade configured)
+    const { error: attachErr } = await supabaseAdmin
+      .from('shipment_attachments')
+      .delete()
+      .eq('shipment_id', id);
+    if (attachErr) console.warn('Failed to delete shipment_attachments:', attachErr);
+
+    const { error: eventsErr } = await supabaseAdmin
+      .from('shipment_events')
+      .delete()
+      .eq('shipment_id', id);
+    if (eventsErr) console.warn('Failed to delete shipment_events:', eventsErr);
+
+    const { error: deleteErr } = await supabaseAdmin
+      .from('shipments')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) {
+      console.error('Error deleting shipment:', deleteErr);
+      return NextResponse.json({ error: 'Failed to delete shipment' }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: 'Shipment deleted successfully' });
+  } catch (error) {
+    console.error('Admin shipment delete error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

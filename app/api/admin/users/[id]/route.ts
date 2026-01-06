@@ -87,6 +87,24 @@ export async function PATCH(
       if (trimmed.length > 255) {
         return NextResponse.json({ error: 'Location is too long' }, { status: 400 });
       }
+
+    // Validate location against DB-managed list
+    const { data: locRow, error: locError } = await supabaseAdmin
+      .from('locations')
+      .select('id')
+      .eq('name', trimmed)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (locError) {
+      console.error('Failed to validate location:', locError);
+      return NextResponse.json(
+        { error: 'Database schema not updated. Apply the locations migration and retry.' },
+        { status: 500 }
+      );
+    }
+    if (!locRow) {
+      return NextResponse.json({ error: 'Invalid location. Add it in SuperAdmin Settings first.' }, { status: 400 });
+    }
     }
 
     // Never allow changing a SuperAdmin account via this endpoint.
