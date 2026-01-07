@@ -38,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'SuperAdmin access required' }, { status: 403 });
     }
 
-    const { status: progressStep, location, receiverName, weightKg } = await request.json();
+    const { status: progressStep, location, receiverName, weightKg, packageQuantity } = await request.json();
 
     if (!progressStep) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
@@ -95,6 +95,18 @@ export async function PATCH(
         }
         updateData.weight = num;
       }
+    }
+
+    // Optional: update package quantity
+    if (packageQuantity !== undefined) {
+      if (packageQuantity === null || packageQuantity === '') {
+        return NextResponse.json({ error: 'Package quantity is required' }, { status: 400 });
+      }
+      const qty = Number(packageQuantity);
+      if (!Number.isFinite(qty) || !Number.isInteger(qty) || qty < 1 || qty > 100000) {
+        return NextResponse.json({ error: 'Invalid package quantity' }, { status: 400 });
+      }
+      updateData.package_quantity = qty;
     }
 
     // Update shipment

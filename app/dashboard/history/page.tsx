@@ -22,6 +22,7 @@ interface ShipmentRow {
   items_description?: string;
   itemsDescription?: string;
   weight?: number | string | null;
+  package_quantity?: number | null;
   status?: string;
   shipment_date?: string;
   created_at?: string;
@@ -204,6 +205,7 @@ export default function HistoryPage() {
       destination: (row.destination || row.delivery_location || '').toString(),
       receiverPhone,
       description: (row.itemsDescription || row.items_description || '').toString(),
+      packageQuantity: row.package_quantity == null ? '' : String(row.package_quantity),
       status: (row.status || '').toString(),
       dateTime: (row.shipment_date || row.latest_event_time || row.createdAt || row.created_at || '').toString(), // Prefer shipment_date
       estimatedDelivery: (row.estimated_delivery_date || '').toString(),
@@ -331,6 +333,7 @@ export default function HistoryPage() {
                     'Receiver Phone',
                     'Description',
                     'Weight (kg)',
+                    'Package Qty',
                     'Status',
                     'Date Sent',
                     'Delivery Date',
@@ -341,6 +344,7 @@ export default function HistoryPage() {
                     const row = normalize(s);
                     const deliveryDate = deliveredAtById[s.id] ? formatDateTime(deliveredAtById[s.id]) : '';
                     const weightKg = s.weight === null || s.weight === undefined ? '' : String(s.weight);
+                    const qty = s.package_quantity == null ? '' : String(s.package_quantity);
 
                     csvRows.push(
                       [
@@ -350,6 +354,7 @@ export default function HistoryPage() {
                         csvEscape(row.receiverPhone),
                         csvEscape(row.description),
                         csvEscape(weightKg),
+                        csvEscape(qty),
                         csvEscape(getStatusLabel(row.status)),
                         csvEscape(row.dateTime),
                         csvEscape(deliveryDate),
@@ -376,12 +381,13 @@ export default function HistoryPage() {
             <div className="rounded-md shadow-sm hidden sm:block">
               <div className="overflow-x-auto">
                 <div className="min-w-[600px] lg:min-w-0">
-                  <div className="bg-[#0F2940] text-white grid grid-cols-7 gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium">
+                  <div className="bg-[#0F2940] text-white grid grid-cols-8 gap-4 items-center px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium">
                     <div>Tracking ID</div>
                     <div>Origin</div>
                     <div>Destination</div>
                     <div>Receiver Phone</div>
                     <div>Description</div>
+                    <div className="whitespace-nowrap">Package Qty</div>
                     <div>Status</div>
                     <div className="text-right">Date / Print</div>
                   </div>
@@ -392,13 +398,14 @@ export default function HistoryPage() {
                       return (
                         <div
                           key={row.id}
-                          className="grid grid-cols-7 gap-4 items-center px-4 sm:px-6 py-4 sm:py-6 text-xs sm:text-sm"
+                          className="grid grid-cols-8 gap-4 items-center px-4 sm:px-6 py-4 sm:py-6 text-xs sm:text-sm"
                         >
                           <div className="font-semibold text-[#0F2940] wrap-break-word">{row.trackingNumber || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.origin || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.destination || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.receiverPhone || '—'}</div>
                           <div className="text-[#475569] wrap-break-word">{row.description || '—'}</div>
+                          <div className="text-[#475569] wrap-break-word">{row.packageQuantity || '—'}</div>
                           <div>
                             <Badge variant={getStatusBadgeVariant(row.status)}>{getStatusLabel(row.status)}</Badge>
                           </div>
@@ -452,6 +459,11 @@ export default function HistoryPage() {
                     <div>
                       <div className="text-xs text-[#475569]">Description</div>
                       <div className="text-[#475569] wrap-break-word text-sm">{row.description || '—'}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-[#475569]">Package Qty</div>
+                      <div className="text-[#475569] wrap-break-word text-sm">{row.packageQuantity || '—'}</div>
                     </div>
 
                     <div className="pt-2">

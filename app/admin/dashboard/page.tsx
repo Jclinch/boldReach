@@ -18,6 +18,7 @@ interface ShipmentRow {
 	itemsDescription?: string;
 	description?: string;
 	weight?: number | string | null;
+	package_quantity?: number | null;
 	delivered_at?: string | null;
 	status?: string;
 	progress_step?: string;
@@ -34,6 +35,7 @@ interface NormalizedShipment {
 	receiverPhone: string;
 	description: string;
 	weightKg: string;
+	packageQuantity: string;
 	deliveredAt: string;
 	status: string;
 	progressStep: string;
@@ -96,6 +98,11 @@ export default function AdminDashboard() {
 	const [shipmentsLoading, setShipmentsLoading] = useState(true);
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
+	const [currentPage, setCurrentPage] = useState(1);
+	const [totalPages, setTotalPages] = useState(1);
+	const [totalCount, setTotalCount] = useState(0);
+
+	const PAGE_SIZE = 20;
 
 	const normalize = useCallback((row: ShipmentRow): NormalizedShipment => {
 		const status = (row.status || '').toString().toLowerCase();
@@ -135,6 +142,7 @@ export default function AdminDashboard() {
 			receiverPhone: (row.receiver_phone || row.receiver_contact?.phone || '').toString(),
 			description: (row.items_description || row.itemsDescription || row.description || '').toString(),
 			weightKg: row.weight === null || row.weight === undefined ? '' : String(row.weight),
+			packageQuantity: row.package_quantity === null || row.package_quantity === undefined ? '' : String(row.package_quantity),
 			deliveredAt: (row.delivered_at || '').toString(),
 			status,
 			progressStep: displayStatus,
@@ -144,30 +152,48 @@ export default function AdminDashboard() {
 	}, []);
 
 	const filteredShipments = useMemo(() => {
-		// Server already filters, but keep this for quick client-side safety.
+		// Server already filters + paginates.
 		return shipments;
 	}, [shipments]);
 
-	const exportShipmentsToCsv = () => {
+	const fetchAllShipmentsForExport = useCallback(async (): Promise<NormalizedShipment[]> => {
+		const params = new URLSearchParams();
+		params.set('all', '1');
+		params.set('limit', '5000');
+		if (search.trim()) params.set('search', search.trim());
+		if (statusFilter !== 'all') params.set('status', statusFilter);
+
+		const res = await fetch(`/api/admin/shipments?${params.toString()}`);
+		if (!res.ok) return [];
+		const data = await res.json();
+		const rawList: ShipmentRow[] = data?.shipments || data || [];
+		return rawList.map(normalize);
+	}, [normalize, search, statusFilter]);
+
+	const exportShipmentsToCsv = async () => {
+		const exportList = await fetchAllShipmentsForExport();
+		if (exportList.length === 0) return;
+
 		const csvEscape = (value: unknown) => {
 			const s = (value ?? '').toString();
 			if (/[^\S\r\n]|[\n\r",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
 			return s;
 		};
 
-		const rows = filteredShipments.map((s) => [
+		const rows = exportList.map((s) => [
 			csvEscape(s.trackingNumber),
 			csvEscape(s.origin),
 			csvEscape(s.destination),
 			csvEscape(s.receiverPhone),
 			csvEscape(s.description),
 			csvEscape(s.weightKg),
+			csvEscape(s.packageQuantity),
 			csvEscape(getStatusLabel(s.progressStep)),
 			csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
 			csvEscape(formatDateOnly(s.deliveredAt)),
 		]);
 
-		const csvHeaders = ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date'];
+		const csvHeaders = ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date'];
 		const csv = [csvHeaders.join(','), ...rows.map((r) => r.join(','))].join('\n');
 		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
 		const url = window.URL.createObjectURL(blob);
@@ -197,27 +223,33 @@ export default function AdminDashboard() {
 			if (showLoading) setShipmentsLoading(true);
 			try {
 				const params = new URLSearchParams();
-				params.set('all', '1');
-				params.set('limit', '5000');
+				params.set('page', String(currentPage));
+				params.set('limit', String(PAGE_SIZE));
 				if (search.trim()) params.set('search', search.trim());
 				if (statusFilter !== 'all') params.set('status', statusFilter);
 
 				const res = await fetch(`/api/admin/shipments?${params.toString()}`);
 				if (!res.ok) {
 					setShipments([]);
+					setTotalPages(1);
+					setTotalCount(0);
 					return;
 				}
 				const data = await res.json();
 				const rawList: ShipmentRow[] = data?.shipments || data || [];
 				setShipments(rawList.map(normalize));
+				setTotalPages(Math.max(1, Number(data?.totalPages ?? 1)));
+				setTotalCount(Number(data?.totalCount ?? 0));
 			} catch (e) {
 				console.error('Failed to fetch admin shipments:', e);
 				setShipments([]);
+				setTotalPages(1);
+				setTotalCount(0);
 			} finally {
 				if (showLoading) setShipmentsLoading(false);
 			}
 		},
-		[normalize, search, statusFilter]
+		[currentPage, normalize, search, statusFilter]
 	);
 
 	useEffect(() => {
@@ -244,7 +276,7 @@ export default function AdminDashboard() {
 					<h1 className="text-3xl font-bold text-[#1E293B] mb-2">Dashboard</h1>
 					<p className="text-[#475569]">Shipment Overview</p>
 				</div>
-				<Button variant="secondary" size="small" onClick={exportShipmentsToCsv} disabled={shipmentsLoading || filteredShipments.length === 0}>
+				<Button variant="secondary" size="small" onClick={exportShipmentsToCsv} disabled={shipmentsLoading}>
 					Export CSV
 				</Button>
 			</div>
@@ -281,7 +313,10 @@ export default function AdminDashboard() {
 								label="Search"
 								placeholder="Tracking ID, destination, description"
 								value={search}
-								onChange={(e) => setSearch(e.target.value)}
+								onChange={(e) => {
+									setCurrentPage(1);
+									setSearch(e.target.value);
+								}}
 							/>
 						</div>
 						<div className="w-full sm:w-48">
@@ -289,7 +324,10 @@ export default function AdminDashboard() {
 							<select
 								className="w-full px-3 py-2.5 text-sm rounded-md border border-[#E2E8F0] bg-white text-[#1E293B]"
 								value={statusFilter}
-								onChange={(e) => setStatusFilter(e.target.value)}
+								onChange={(e) => {
+									setCurrentPage(1);
+									setStatusFilter(e.target.value);
+								}}
 							>
 								<option value="all">All</option>
 								<option value="pending">Pending</option>
@@ -313,6 +351,7 @@ export default function AdminDashboard() {
 								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569]">Destination</th>
 								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569] whitespace-nowrap">Receiver Phone</th>
 								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569]">Description</th>
+								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569] whitespace-nowrap">Package Qty</th>
 								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569]">Status</th>
 								<th className="px-6 py-4 text-left text-sm font-medium text-[#475569]">Shipment Date</th>
 							</tr>
@@ -320,13 +359,13 @@ export default function AdminDashboard() {
 						<tbody className="bg-white divide-y divide-[#E2E8F0]">
 							{shipmentsLoading ? (
 								<tr>
-									<td className="px-6 py-6 text-sm text-[#64748B]" colSpan={7}>
+									<td className="px-6 py-6 text-sm text-[#64748B]" colSpan={8}>
 										Loading shipments...
 									</td>
 								</tr>
 							) : filteredShipments.length === 0 ? (
 								<tr>
-									<td className="px-6 py-6 text-sm text-[#64748B]" colSpan={7}>
+									<td className="px-6 py-6 text-sm text-[#64748B]" colSpan={8}>
 										No shipments found.
 									</td>
 								</tr>
@@ -338,6 +377,7 @@ export default function AdminDashboard() {
 										<td className="px-6 py-4 text-sm text-[#475569]">{s.destination || '—'}</td>
 										<td className="px-6 py-4 text-sm text-[#475569] whitespace-nowrap">{s.receiverPhone || '—'}</td>
 										<td className="px-6 py-4 text-sm text-[#475569]">{s.description || '—'}</td>
+										<td className="px-6 py-4 text-sm text-[#475569] whitespace-nowrap">{s.packageQuantity || '—'}</td>
 										<td className="px-6 py-4 text-sm">
 											<span
 												className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium"
@@ -352,6 +392,35 @@ export default function AdminDashboard() {
 							)}
 						</tbody>
 					</table>
+				</div>
+
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+					<p className="text-sm text-[#64748B]">
+						{totalCount > 0
+							? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount}`
+							: 'Showing 0 results'}
+					</p>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="secondary"
+							size="small"
+							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							disabled={shipmentsLoading || currentPage <= 1}
+						>
+							Prev
+						</Button>
+						<span className="text-sm text-[#475569] px-2">
+							Page {currentPage} of {Math.max(1, totalPages)}
+						</span>
+						<Button
+							variant="secondary"
+							size="small"
+							onClick={() => setCurrentPage((p) => Math.min(Math.max(1, totalPages), p + 1))}
+							disabled={shipmentsLoading || currentPage >= Math.max(1, totalPages)}
+						>
+							Next
+						</Button>
+					</div>
 				</div>
 			</Card>
 		</div>

@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 
 const STORAGE_BUCKET = 'package-images'; // Supabase storage bucket for shipment images
 const UPLOAD_FOLDER = 'package-images';
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export default function NewShipmentPage() {
   const supabase = createClient();
@@ -55,6 +56,7 @@ export default function NewShipmentPage() {
     receiverName: '',
     receiverPhone: '',
     itemsDescription: '',
+    packageQuantity: '1',
     weight: '',
     originLocation: '',
     destination: '',
@@ -96,8 +98,8 @@ export default function NewShipmentPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, image: 'Image size must be less than 1MB' }));
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        setErrors((prev) => ({ ...prev, image: 'Image size must be less than 5MB' }));
         return;
       }
       setPackageImage(file);
@@ -146,6 +148,11 @@ export default function NewShipmentPage() {
       if (!formData.receiverPhone.trim()) newErrors.receiverPhone = 'Receiver phone number is required';
       else if (!isValidPhone(formData.receiverPhone)) newErrors.receiverPhone = 'Enter a valid 11-digit phone number (e.g., 08012345678)';
       if (!formData.itemsDescription.trim()) newErrors.itemsDescription = 'Items description is required';
+
+      const qty = Number(String(formData.packageQuantity).trim());
+      if (!String(formData.packageQuantity).trim()) newErrors.packageQuantity = 'Package quantity is required';
+      else if (!Number.isFinite(qty) || !Number.isInteger(qty) || qty <= 0) newErrors.packageQuantity = 'Enter a valid quantity (whole number)';
+
       if (!formData.weight.toString().trim()) newErrors.weight = 'Weight is required';
       if (!formData.originLocation.trim()) newErrors.originLocation = 'Origin location is required';
       if (!formData.destination.trim()) newErrors.destination = 'Destination is required';
@@ -189,6 +196,7 @@ export default function NewShipmentPage() {
         },
         receiver_phone: normalizedReceiverPhone,
         items_description: formData.itemsDescription,
+        package_quantity: qty,
         weight: formData.weight ? parseFloat(String(formData.weight)) : null,
         origin_location: formData.originLocation,
         destination: formData.destination,
@@ -253,6 +261,7 @@ export default function NewShipmentPage() {
         receiverName: '',
         receiverPhone: '',
         itemsDescription: '',
+        packageQuantity: '1',
         weight: '',
         originLocation: '',
         destination: '',
@@ -274,6 +283,7 @@ export default function NewShipmentPage() {
     Boolean(formData.receiverName.trim()) &&
     Boolean(formData.receiverPhone.trim()) &&
     Boolean(formData.itemsDescription.trim()) &&
+    Boolean(String(formData.packageQuantity).trim()) &&
     Boolean(String(formData.weight).trim()) &&
     Boolean(formData.originLocation.trim()) &&
     Boolean(formData.destination.trim());
@@ -350,8 +360,8 @@ export default function NewShipmentPage() {
               {errors.receiverPhone && <p className="mt-1.5 text-xs text-red-600">{errors.receiverPhone}</p>}
             </div>
 
-            {/* Items Description, Weight, Tracking ID */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            {/* Items Description, Quantity, Weight, Tracking ID */}
+            <div className="grid grid-cols-4 gap-4 mb-4">
               <div className="col-span-2">
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Items Description</label>
                 <textarea
@@ -365,6 +375,24 @@ export default function NewShipmentPage() {
                   }`}
                 />
                 {errors.itemsDescription && <p className="mt-1.5 text-xs text-red-600">{errors.itemsDescription}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-2">Package Quantity</label>
+                <input
+                  type="number"
+                  name="packageQuantity"
+                  value={formData.packageQuantity}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 1"
+                  step="1"
+                  min="1"
+                  inputMode="numeric"
+                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                    errors.packageQuantity ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                />
+                {errors.packageQuantity && <p className="mt-1.5 text-xs text-red-600">{errors.packageQuantity}</p>}
               </div>
 
               <div>
@@ -398,7 +426,7 @@ export default function NewShipmentPage() {
 
             {/* Package Image Upload */}
             <div className="mb-6">
-              <label className="block text-[13px] font-medium text-gray-700 mb-2">Package Image (Max 1mb)</label>
+              <label className="block text-[13px] font-medium text-gray-700 mb-2">Package Image (Max 5mb)</label>
 
               <div className="flex items-start gap-4">
                 {/* choose file pill + filename */}

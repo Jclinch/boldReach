@@ -3,34 +3,106 @@
 
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 
 function ResetPasswordContent() {
+  const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const [hashParams, setHashParams] = useState<URLSearchParams | null>(null);
+
+  useEffect(() => {
+    // Supabase can return recovery params in the URL hash fragment.
+    const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
+    setHashParams(new URLSearchParams(hash));
+  }, []);
+
+  const getParam = useMemo(() => {
+    return (key: string) => searchParams.get(key) ?? hashParams?.get(key) ?? null;
+  }, [hashParams, searchParams]);
+
+  const code = getParam('code');
+  const type = getParam('type');
+  const tokenHash = getParam('token_hash');
+  const accessToken = getParam('access_token');
+  const refreshToken = getParam('refresh_token');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tokenValid, setTokenValid] = useState(!!token);
+  const [tokenValid, setTokenValid] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      toast.error('Invalid reset link. Please request a new one.');
-      setTokenValid(false);
-    }
-  }, [token]);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Supabase recovery flow (preferred): code exchange (PKCE)
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          if (!cancelled) {
+            setSessionReady(true);
+            setTokenValid(true);
+          }
+          return;
+        }
+
+        // Supabase email links may use token_hash
+        if (tokenHash && (type === 'recovery' || type === null)) {
+          const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+          if (error) throw error;
+          if (!cancelled) {
+            setSessionReady(true);
+            setTokenValid(true);
+          }
+          return;
+        }
+
+        // Legacy implicit flow: access_token + refresh_token
+        if (type === 'recovery' && accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          if (!cancelled) {
+            setSessionReady(true);
+            setTokenValid(true);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setTokenValid(false);
+          setSessionReady(false);
+        }
+        toast.error('Invalid or expired reset link. Please request a new one.');
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Failed to verify reset link';
+        if (!cancelled) {
+          setTokenValid(false);
+          setSessionReady(false);
+        }
+        toast.error(message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, code, refreshToken, supabase, tokenHash, type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      if (!token) {
+      if (!tokenValid || !sessionReady) {
         toast.error('Invalid reset link.');
         setIsSubmitting(false);
         return;
@@ -46,21 +118,15 @@ function ResetPasswordContent() {
         return;
       }
 
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to update password');
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        toast.error(error.message || 'Failed to update password');
         setIsSubmitting(false);
         return;
       }
 
       toast.success('Password updated. Please sign in.');
+      await supabase.auth.signOut().catch(() => undefined);
       router.push('/signin');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'An unexpected error occurred';

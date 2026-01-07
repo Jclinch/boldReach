@@ -1,12 +1,34 @@
 // app/api/auth/forgot-password/route.ts
-// Custom password reset: generate token, store it, and send email
+// Supabase password reset (built-in): send recovery email handled by Supabase
 
-import { createClient } from '@/utils/supabase/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createClient as createAnonClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { sendPasswordResetEmail } from '@/lib/email';
-import crypto from 'crypto';
+
+function getSiteUrl(request: NextRequest) {
+  // Prefer request origin (works in dev + most deployments) to avoid stale/mismatched env URLs.
+  // Fallback to configured app URL if request origin isn't available.
+  return request.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+function isDev() {
+  return process.env.NODE_ENV !== 'production';
+}
+
+function safeStringify(value: unknown) {
+  try {
+    if (value instanceof Error) {
+      return JSON.stringify({
+        name: value.name,
+        message: value.message,
+        stack: value.stack,
+      });
+    }
+
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,77 +38,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    console.log('🔑 Forgot password request for:', email);
-
-    // Use admin client to query auth.users (requires service role key)
-    console.log('🔍 Querying auth.users with service role...');
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || ''
-    );
-
-    if (!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('❌ SERVICE_ROLE_KEY not configured');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
+    if (!supabaseUrl || !anonKey) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const { data: { users: authUsers }, error: queryError } = await supabaseAdmin.auth.admin.listUsers();
+    const supabase = createAnonClient(supabaseUrl, anonKey);
+    const redirectTo = `${getSiteUrl(request)}/reset-password`;
 
-    if (queryError) {
-      console.error('❌ Failed to query auth.users:', queryError);
-      return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
-    }
+    // Do not reveal if user exists.
+    // But do surface actionable delivery/config errors (rate limit, bad redirect, missing SMTP) as non-enumerating failures.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) {
+      console.error('Supabase resetPasswordForEmail error:', error);
 
-    console.log('✅ Query result:', authUsers?.length || 0, 'total auth users found');
-    const user = authUsers?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      const msg = (error as { message?: string }).message || '';
+      const status = (error as { status?: number }).status;
+      const debugDetails = isDev()
+        ? {
+            details: msg || safeStringify(error),
+            status,
+            redirectTo,
+            supabaseUrlHost: (() => {
+              try {
+                return new URL(supabaseUrl).host;
+              } catch {
+                return supabaseUrl;
+              }
+            })(),
+          }
+        : {};
 
-    if (!user) {
-      // Don't reveal if user exists for security; always return success
-      console.log('⚠️ No user found with email:', email);
-      return NextResponse.json({ success: true, message: 'If an account with this email exists, a reset link has been sent.' });
-    }
+      if (status === 429 || /rate|too many|over_email_send_rate_limit/i.test(msg)) {
+        return NextResponse.json(
+          { error: 'Too many reset requests. Please wait a moment and try again.', ...debugDetails },
+          { status: 429 }
+        );
+      }
 
-    console.log('✅ User found:', user.id);
+      if (/redirect|redirectto|invalid url|site url/i.test(msg)) {
+        return NextResponse.json(
+          {
+            error: 'Reset email is temporarily unavailable (redirect URL not allowed). Contact support.',
+            ...debugDetails,
+          },
+          { status: 500 }
+        );
+      }
 
-    // Generate secure token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+      if (/smtp|mail|email provider|error sending email/i.test(msg)) {
+        return NextResponse.json(
+          {
+            error: 'Reset email is temporarily unavailable (email provider not configured).',
+            ...debugDetails,
+          },
+          { status: 500 }
+        );
+      }
 
-    console.log('🎫 Generated token, storing in database...');
-    // Store token in password_reset_tokens table using admin client
-    const { error: insertError } = await supabaseAdmin
-      .from('password_reset_tokens')
-      .insert([
+      // For other errors, return a generic 500 (still not revealing whether the user exists).
+      return NextResponse.json(
         {
-          user_id: user.id,
-          token,
-          email: user.email,
-          expires_at: expiresAt,
+          error: 'Reset email is temporarily unavailable. Please try again later.',
+          ...debugDetails,
         },
-      ]);
-
-    if (insertError) {
-      console.error('❌ Failed to store reset token:', insertError);
-      return NextResponse.json({ error: 'Failed to generate reset link' }, { status: 500 });
+        { status: 500 }
+      );
     }
 
-    console.log('✅ Token stored successfully');
-
-    // Construct reset link
-    const baseUrl = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetLink = `${baseUrl}/reset-password?token=${token}`;
-
-    console.log('📧 Sending password reset email...');
-    // Send email
-    const emailResult = await sendPasswordResetEmail(user.email || '', resetLink);
-
-    if (!emailResult.success) {
-      console.error('❌ Email send failed:', emailResult.error);
-      return NextResponse.json({ error: 'Failed to send reset email' }, { status: 500 });
-    }
-
-    console.log('✅ Password reset flow completed successfully');
-    return NextResponse.json({ success: true, message: 'If an account with this email exists, a reset link has been sent.' });
+    return NextResponse.json({
+      success: true,
+      message: 'If an account with this email exists, a reset link has been sent.',
+    });
   } catch (error) {
     console.error('❌ Forgot password error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

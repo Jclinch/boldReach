@@ -25,6 +25,7 @@ interface ShipmentRow {
 	itemsDescription?: string;
 	description?: string;
 	weight?: number | string | null;
+	package_quantity?: number | null;
 	delivered_at?: string | null;
 	status?: string;
 	shipment_date?: string;
@@ -47,6 +48,7 @@ interface NormalizedShipment {
 	description: string;
 	destination: string;
 	weightKg: string;
+	packageQuantity: string;
 	deliveredAt: string;
 	shipmentDate: string;
 	createdAt: string;
@@ -71,6 +73,7 @@ interface ShipmentDetails {
 	receiver_contact: { phone?: string; email?: string } | null;
 	items_description: string;
 	weight: number | null;
+	package_quantity?: number | null;
 	origin_location: string | null;
 	destination: string | null;
 	package_image_url: string | null;
@@ -85,13 +88,17 @@ interface ShipmentDetails {
 export default function AdminDashboard() {
 	const pathname = usePathname();
 	const isSuperAdminArea = pathname.startsWith('/superAdmin');
-	const shipmentTableColumns = isSuperAdminArea ? 8 : 6;
+	const shipmentTableColumns = isSuperAdminArea ? 9 : 7;
 	const [stats, setStats] = useState<DashboardStats | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [shipments, setShipments] = useState<NormalizedShipment[]>([]);
 	const [shipmentsLoading, setShipmentsLoading] = useState(true);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [totalPages, setTotalPages] = useState(1);
+	const [totalCount, setTotalCount] = useState(0);
+	const PAGE_SIZE = 20;
 
 	// Modal state
 	const [selectedShipment, setSelectedShipment] = useState<NormalizedShipment | null>(null);
@@ -100,13 +107,32 @@ export default function AdminDashboard() {
 	const [isModalLoading, setIsModalLoading] = useState(false);
 	const [newStatus, setNewStatus] = useState('');
 	const [newLocation, setNewLocation] = useState('');
+	const [locationOptions, setLocationOptions] = useState<string[]>([]);
+	const [locationsLoading, setLocationsLoading] = useState(false);
 	const [editReceiverName, setEditReceiverName] = useState('');
 	const [editWeightKg, setEditWeightKg] = useState<string>('');
+	const [editPackageQuantity, setEditPackageQuantity] = useState<string>('');
 	const [isUpdating, setIsUpdating] = useState(false);
 
 	const supabase = createClient();
 
-	const exportShipmentsToCsv = () => {
+	const fetchAllShipmentsForExport = useCallback(async (): Promise<NormalizedShipment[]> => {
+		const params = new URLSearchParams();
+		params.set('all', '1');
+		params.set('limit', '5000');
+		if (search.trim()) params.set('search', search.trim());
+		if (statusFilter !== 'all') params.set('status', statusFilter);
+		const res = await fetch(`/api/admin/shipments?${params.toString()}`);
+		if (!res.ok) return [];
+		const data = await res.json();
+		const rawList: ShipmentRow[] = data?.shipments || data || [];
+		return rawList.map(normalize);
+	}, [search, statusFilter]);
+
+	const exportShipmentsToCsv = async () => {
+		const exportList = await fetchAllShipmentsForExport();
+		if (exportList.length === 0) return;
+
 		const csvEscape = (value: unknown) => {
 			const s = (value ?? '').toString();
 			if(/[\n\r",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -114,9 +140,9 @@ export default function AdminDashboard() {
 		};
 
 		const headers = isSuperAdminArea
-			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date']
-			: ['Tracking ID', 'Destination', 'Description', 'Weight (kg)', 'Status', 'Shipment Date', 'Delivery Date'];
-		const rows = shipments.map((s) =>
+			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date']
+			: ['Tracking ID', 'Destination', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date'];
+		const rows = exportList.map((s) =>
 			isSuperAdminArea
 				? [
 						csvEscape(s.trackingNumber),
@@ -125,6 +151,7 @@ export default function AdminDashboard() {
 						csvEscape(s.receiverPhone),
 						csvEscape(s.description),
 						csvEscape(s.weightKg),
+						csvEscape(s.packageQuantity),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
 						csvEscape(formatDateOnly(s.deliveredAt)),
@@ -134,6 +161,7 @@ export default function AdminDashboard() {
 						csvEscape(s.destination),
 						csvEscape(s.description),
 						csvEscape(s.weightKg),
+						csvEscape(s.packageQuantity),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
 						csvEscape(formatDateOnly(s.deliveredAt)),
@@ -152,6 +180,31 @@ export default function AdminDashboard() {
 
 	useEffect(() => {
 		fetchDashboardStats();
+	}, []);
+
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			setLocationsLoading(true);
+			try {
+				const res = await fetch('/api/locations');
+				const data: unknown = await res.json().catch(() => ({}));
+				if (!res.ok) {
+					if (!cancelled) setLocationOptions([]);
+					return;
+				}
+				const list = (data as { locations?: Array<{ name?: string }> } | null)?.locations || [];
+				const names = list.map((l) => (l?.name ?? '').toString()).filter(Boolean);
+				if (!cancelled) setLocationOptions(names);
+			} catch {
+				if (!cancelled) setLocationOptions([]);
+			} finally {
+				if (!cancelled) setLocationsLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
 	// Normalize each row to consistent field names (same pattern as user history page)
@@ -200,6 +253,7 @@ export default function AdminDashboard() {
 			senderName: (row.senderName || row.sender_name || '').toString(),
 			receiverPhone: (row.receiver_phone || row.receiver_contact?.phone || '').toString(),
 			weightKg: row.weight === null || row.weight === undefined ? '' : String(row.weight),
+			packageQuantity: row.package_quantity === null || row.package_quantity === undefined ? '' : String(row.package_quantity),
 			deliveredAt: (row.delivered_at || '').toString(),
 			shipmentDate: (row.shipment_date || '').toString(),
 			createdAt: (row.createdAt || row.created_at || row.latest_event_time || '').toString(),
@@ -212,14 +266,8 @@ export default function AdminDashboard() {
 			if (showLoading) setShipmentsLoading(true);
 			try {
 				const params = new URLSearchParams();
-				// SuperAdmin shipment management should show all shipments.
-				// We request the API in "all" mode and apply a generous cap.
-				if (isSuperAdminArea) {
-					params.set('all', '1');
-					params.set('limit', '5000');
-				} else {
-					params.set('limit', '20');
-				}
+				params.set('page', String(currentPage));
+				params.set('limit', String(PAGE_SIZE));
 				if (search.trim()) params.set('search', search.trim());
 				if (statusFilter !== 'all') params.set('status', statusFilter);
 
@@ -229,17 +277,23 @@ export default function AdminDashboard() {
 					const rawList: ShipmentRow[] = data?.shipments || data || [];
 					const list: NormalizedShipment[] = rawList.map(normalize);
 					setShipments(list);
+					setTotalPages(Math.max(1, Number(data?.totalPages ?? 1)));
+					setTotalCount(Number(data?.totalCount ?? 0));
 				} else {
 					setShipments([]);
+					setTotalPages(1);
+					setTotalCount(0);
 				}
 			} catch (e) {
 				console.error('Failed to fetch admin shipments:', e);
 				setShipments([]);
+				setTotalPages(1);
+				setTotalCount(0);
 			} finally {
 				if (showLoading) setShipmentsLoading(false);
 			}
 		},
-		[isSuperAdminArea, search, statusFilter]
+		[currentPage, search, statusFilter]
 	);
 
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -375,6 +429,7 @@ export default function AdminDashboard() {
 	const openModal = async (shipment: NormalizedShipment) => {
 		setSelectedShipment(shipment);
 		setNewStatus(shipment.progressStep);
+		setNewLocation((shipment.destination || '').toString());
 		setIsModalOpen(true);
 		setIsModalLoading(true);
 
@@ -392,6 +447,8 @@ export default function AdminDashboard() {
 
 				setEditReceiverName((data?.receiver_name || '').toString());
 				setEditWeightKg(data?.weight != null ? String(data.weight) : '');
+				setEditPackageQuantity(data?.package_quantity != null ? String(data.package_quantity) : '');
+				setNewLocation((data?.destination || shipment.destination || '').toString());
 
 				// Use progress_step for the dropdown (fallback to status-based mapping)
 				const progressStep =
@@ -420,6 +477,7 @@ export default function AdminDashboard() {
 		setNewLocation('');
 		setEditReceiverName('');
 		setEditWeightKg('');
+		setEditPackageQuantity('');
 	};
 
 	const handleUpdateStatus = async () => {
@@ -440,6 +498,17 @@ export default function AdminDashboard() {
 			}
 		}
 
+		const qtyTrimmed = editPackageQuantity.trim();
+		if (!qtyTrimmed) {
+			toast.error('Package quantity is required');
+			return;
+		}
+		const qtyNum = Number(qtyTrimmed);
+		if (!Number.isFinite(qtyNum) || !Number.isInteger(qtyNum) || qtyNum < 1 || qtyNum > 100000) {
+			toast.error('Enter a valid package quantity (whole number)');
+			return;
+		}
+
 		setIsUpdating(true);
 		try {
 			const res = await fetch(`/api/admin/shipments/${selectedShipment.id}`, {
@@ -450,6 +519,7 @@ export default function AdminDashboard() {
 					location: newLocation,
 					receiverName,
 					weightKg: weight ? Number(weight) : null,
+					packageQuantity: qtyNum,
 				}),
 			});
 
@@ -463,6 +533,7 @@ export default function AdminDashboard() {
 									status: newStatus,
 									progressStep: newStatus,
 									destination: newLocation.trim() || s.destination,
+									packageQuantity: String(qtyNum),
 								}
 							: s
 					)
@@ -584,7 +655,10 @@ export default function AdminDashboard() {
 								type="text"
 								placeholder="Search by Tracking ID, address, or description"
 								value={search}
-								onChange={(e) => setSearch(e.target.value)}
+								onChange={(e) => {
+									setCurrentPage(1);
+									setSearch(e.target.value);
+								}}
 							/>
 						</div>
 
@@ -597,7 +671,10 @@ export default function AdminDashboard() {
 								)}
 								<select
 									value={statusFilter}
-									onChange={(e) => setStatusFilter(e.target.value)}
+									onChange={(e) => {
+										setCurrentPage(1);
+										setStatusFilter(e.target.value);
+									}}
 									className="w-full pl-9 pr-3 py-2.5 text-sm rounded-md border border-[#E2E8F0] bg-white text-[#1E293B] focus:border-[#2563EB] focus:outline-none"
 								>
 									<option value="all">All Statuses</option>
@@ -612,7 +689,7 @@ export default function AdminDashboard() {
 						<div className="w-full sm:w-auto sm:shrink-0">
 							<Button
 								onClick={exportShipmentsToCsv}
-								disabled={shipmentsLoading || shipments.length === 0}
+								disabled={shipmentsLoading}
 								className="w-full sm:w-auto h-[42px] px-4 bg-[#F97316] text-white hover:bg-[#EA580C] disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								Export CSV
@@ -634,6 +711,7 @@ export default function AdminDashboard() {
 										<th className="px-6 py-4 text-left font-medium">Receiver Phone</th>
 									) : null}
 									<th className="px-6 py-4 text-left font-medium">Description</th>
+										<th className="px-6 py-4 text-left font-medium whitespace-nowrap">Package Qty</th>
 									<th className="px-6 py-4 text-left font-medium">Status</th>
 									<th className="px-6 py-4 text-right font-medium whitespace-nowrap">Shipment Date</th>
 									<th className="px-6 py-4 text-right font-medium">Action</th>
@@ -663,6 +741,7 @@ export default function AdminDashboard() {
 												</td>
 											) : null}
 											<td className="px-6 py-6 text-xs text-[#475569]">{shipment.description || '—'}</td>
+											<td className="px-6 py-6 text-xs text-[#475569] whitespace-nowrap">{shipment.packageQuantity || '—'}</td>
 											<td className="px-6 py-6 text-xs">
 												<span
 													className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium"
@@ -751,6 +830,10 @@ export default function AdminDashboard() {
 										<p className="text-xs text-[#94A3B8]">Description</p>
 										<p className="text-sm text-[#475569] wrap-break-word">{shipment.description || '—'}</p>
 									</div>
+												<div>
+													<p className="text-xs text-[#94A3B8]">Package Qty</p>
+													<p className="text-sm text-[#475569] wrap-break-word">{shipment.packageQuantity || '—'}</p>
+												</div>
 								</div>
 
 								<div className="mt-4">
@@ -769,6 +852,33 @@ export default function AdminDashboard() {
 							No shipments found
 						</div>
 					)}
+				</div>
+
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+					<p className="text-sm text-[#64748B]">
+						{totalCount > 0
+							? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount}`
+							: 'Showing 0 results'}
+					</p>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="secondary"
+							onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							disabled={shipmentsLoading || currentPage <= 1}
+						>
+							Prev
+						</Button>
+						<span className="text-sm text-[#475569] px-2">
+							Page {currentPage} of {Math.max(1, totalPages)}
+						</span>
+						<Button
+							variant="secondary"
+							onClick={() => setCurrentPage((p) => Math.min(Math.max(1, totalPages), p + 1))}
+							disabled={shipmentsLoading || currentPage >= Math.max(1, totalPages)}
+						>
+							Next
+						</Button>
+					</div>
 				</div>
 			</Card>
 
@@ -862,6 +972,17 @@ export default function AdminDashboard() {
 											</div>
 
 											<div>
+												<p className="text-gray-500">Package Qty</p>
+												<Input
+													value={editPackageQuantity}
+													onChange={(e) => setEditPackageQuantity(e.target.value)}
+													placeholder="e.g., 3"
+													inputMode="numeric"
+													className="mt-1"
+												/>
+											</div>
+
+											<div>
 												<p className="text-gray-500">Progress Step</p>
 												<p className="font-medium">
 													{shipmentDetails?.progress_step
@@ -928,17 +1049,27 @@ export default function AdminDashboard() {
 
 										{/* Location */}
 										<label className="text-sm mb-1 text-gray-600">Location</label>
-										<Input
-											placeholder="Enter current location"
-											value={newLocation}
-											onChange={(e) => setNewLocation(e.target.value)}
-											className="mb-4"
-										/>
+										<div className="relative mb-4">
+											<select
+												value={newLocation}
+												onChange={(e) => setNewLocation(e.target.value)}
+												className="w-full px-4 py-3 rounded-lg border border-gray-300 text-sm appearance-none bg-white focus:border-[#2563EB] focus:outline-none"
+											>
+												<option value="">Keep current destination</option>
+												{locationOptions.map((loc) => (
+													<option key={loc} value={loc}>
+														{loc}
+													</option>
+												))}
+											</select>
+											<ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+										</div>
+										{locationsLoading ? <p className="-mt-2 mb-4 text-xs text-gray-400">Loading locations…</p> : null}
 
 										{/* Button */}
 										<Button
 											onClick={handleUpdateStatus}
-											disabled={isUpdating || newStatus === (shipmentDetails?.progress_step || selectedShipment.progressStep)}
+											disabled={isUpdating}
 											className="mt-6 w-full h-12 bg-black text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
 										>
 											{isUpdating ? 'Updating...' : 'Update Status'}

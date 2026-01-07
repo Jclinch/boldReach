@@ -16,6 +16,7 @@ interface ShipmentDetail {
   receiver_name: string;
   items_description: string;
   weight: number;
+  package_quantity?: number | null;
   origin_location: string;
   destination: string;
   package_image_url?: string;
@@ -242,6 +243,11 @@ export default function ShipmentDetailPage() {
                 <p className="text-xs text-[#94A3B8] mb-1">Weight</p>
                 <p className="text-sm text-[#1E293B]">{shipment.weight} kg</p>
               </div>
+
+			  <div>
+				<p className="text-xs text-[#94A3B8] mb-1">Package Qty</p>
+				<p className="text-sm text-[#1E293B]">{shipment.package_quantity ?? '—'}</p>
+			  </div>
 
               <div>
                 <p className="text-xs text-[#94A3B8] mb-1">Created At</p>

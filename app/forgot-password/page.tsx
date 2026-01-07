@@ -22,21 +22,46 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      const response = await fetch('/api/auth/forgot-password', {
+      const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to send reset email');
-        setIsSubmitting(false);
+      if (res.status === 429) {
+        const data = await res.json().catch(() => null);
+        toast.error(
+          (data && typeof data.error === 'string')
+            ? data.error
+            : 'Too many reset requests. Please wait a moment and try again.'
+        );
         return;
       }
 
-      toast.success('Password reset email sent. Check your inbox.');
+      if (res.status >= 500) {
+        const data = await res.json().catch(() => null);
+        // Helpful for debugging in dev; does not affect user enumeration.
+        // eslint-disable-next-line no-console
+        console.error('Forgot-password failed:', data ?? { status: res.status });
+        toast.error(
+          (data && typeof data.error === 'string')
+            ? data.error
+            : 'Reset email is temporarily unavailable. Please try again later.'
+        );
+        return;
+      }
+
+      // Always show a generic success message to avoid user enumeration.
+      if (!res.ok) {
+        toast.success('If an account with this email exists, a reset link has been sent.');
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.success(
+          (data && typeof data.message === 'string')
+            ? data.message
+            : 'If an account with this email exists, a reset link has been sent.'
+        );
+      }
       setEmail('');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'An unexpected error occurred';

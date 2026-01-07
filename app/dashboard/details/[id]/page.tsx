@@ -24,6 +24,8 @@ interface ShipmentDetail {
   status: string;
   shipmentType: string;
   weightKg: number;
+  packageQuantity?: number;
+  package_quantity?: number;
   pickupLocation: string;
   pickupAddress: string;
   pickupCity: string;
@@ -232,6 +234,12 @@ export default function ShipmentDetailsPage({ params }: { params: Promise<{ id: 
             <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
               <span className="text-[#94A3B8]">Weight</span>
               <span className="text-[#1E293B] font-medium">{shipment.weightKg} kg</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
+              <span className="text-[#94A3B8]">Package Qty</span>
+              <span className="text-[#1E293B] font-medium">
+                {shipment.packageQuantity ?? shipment.package_quantity ?? 'N/A'}
+              </span>
             </div>
             <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
               <span className="text-[#94A3B8]">Dimensions</span>

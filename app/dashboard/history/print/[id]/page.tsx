@@ -13,6 +13,7 @@ type Shipment = {
   receiver_contact: { phone?: string } | null;
   items_description: string | null;
   weight: number | null;
+  package_quantity?: number | null;
   origin_location?: string | null;
   destination: string | null;
   shipment_date: string | null;
@@ -159,10 +160,14 @@ export default async function PrintShipmentPage({
 
         <div className="mt-6 rounded-lg border border-slate-200 p-5">
           <div className="text-xs font-semibold text-slate-500">Package</div>
-          <div className="mt-2 grid grid-cols-3 gap-4">
+          <div className="mt-2 grid grid-cols-4 gap-4">
             <div>
               <div className="text-sm text-slate-600">Weight</div>
               <div className="text-sm font-semibold">{shipment.weight ?? '—'} {shipment.weight != null ? 'kg' : ''}</div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-600">Package Qty</div>
+              <div className="text-sm font-semibold">{shipment.package_quantity ?? '—'}</div>
             </div>
             <div className="col-span-2">
               <div className="text-sm text-slate-600">Items Description</div>
