@@ -34,36 +34,30 @@ function ResetPasswordContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tokenValid, setTokenValid] = useState(true);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        // Supabase recovery flow (preferred): code exchange (PKCE)
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          if (!cancelled) {
-            setSessionReady(true);
-            setTokenValid(true);
-          }
-          return;
-        }
+        if (!cancelled) setIsVerifying(true);
 
-        // Supabase email links may use token_hash
+        // Password recovery links: prefer token_hash flow (works even if the user
+        // opens the email link on a different device/browser).
         if (tokenHash && (type === 'recovery' || type === null)) {
           const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
           if (error) throw error;
           if (!cancelled) {
             setSessionReady(true);
             setTokenValid(true);
+            setIsVerifying(false);
           }
           return;
         }
 
-        // Legacy implicit flow: access_token + refresh_token
+        // Recovery links can also arrive with tokens in the URL hash fragment.
         if (type === 'recovery' && accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -73,6 +67,21 @@ function ResetPasswordContent() {
           if (!cancelled) {
             setSessionReady(true);
             setTokenValid(true);
+            setIsVerifying(false);
+          }
+          return;
+        }
+
+        // PKCE code exchange is for auth callbacks/magic links.
+        // For recovery links, this frequently fails with "both auth code and code verifier should be non-empty"
+        // when the email link is opened on a different device/browser.
+        if (code && type !== 'recovery') {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          if (!cancelled) {
+            setSessionReady(true);
+            setTokenValid(true);
+            setIsVerifying(false);
           }
           return;
         }
@@ -80,6 +89,7 @@ function ResetPasswordContent() {
         if (!cancelled) {
           setTokenValid(false);
           setSessionReady(false);
+          setIsVerifying(false);
         }
         toast.error('Invalid or expired reset link. Please request a new one.');
       } catch (e: unknown) {
@@ -87,8 +97,15 @@ function ResetPasswordContent() {
         if (!cancelled) {
           setTokenValid(false);
           setSessionReady(false);
+          setIsVerifying(false);
         }
-        toast.error(message);
+        if (/code verifier|code_verifier|both auth code and code verifier/i.test(message)) {
+          toast.error(
+            'This reset link requires a different verification method. Update your Supabase Reset Password email template to use token_hash links, then request a new reset email.'
+          );
+        } else {
+          toast.error(message);
+        }
       }
     })();
 
@@ -102,19 +119,16 @@ function ResetPasswordContent() {
     setIsSubmitting(true);
 
     try {
-      if (!tokenValid || !sessionReady) {
+      if (tokenValid !== true || !sessionReady) {
         toast.error('Invalid reset link.');
-        setIsSubmitting(false);
         return;
       }
       if (!password || password.length < 8) {
         toast.error('Password must be at least 8 characters long.');
-        setIsSubmitting(false);
         return;
       }
       if (password !== confirmPassword) {
         toast.error('Passwords do not match.');
-        setIsSubmitting(false);
         return;
       }
 
@@ -141,12 +155,16 @@ function ResetPasswordContent() {
       <div className="w-full max-w-md p-6 rounded-xl border border-[#E5E7EB] bg-white shadow-sm">
         <h1 className="text-2xl font-bold text-[#1E293B] mb-2">Reset Password</h1>
         <p className="text-sm text-[#475569] mb-6">
-          {tokenValid
-            ? 'Enter a new password for your account.'
-            : 'This reset link is invalid or has expired. Please request a new one.'}
+          {isVerifying
+            ? 'Verifying reset link...'
+            : tokenValid
+              ? 'Enter a new password for your account.'
+              : 'This reset link is invalid or has expired. Please request a new one.'}
         </p>
 
-        {!tokenValid ? (
+        {isVerifying ? (
+          <p className="text-center text-sm text-[#475569]">Please wait…</p>
+        ) : !tokenValid ? (
           <p className="text-center text-sm text-orange-500">
             <a href="/forgot-password" className="underline hover:text-orange-600">
               Request a new reset link

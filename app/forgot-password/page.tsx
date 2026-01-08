@@ -6,8 +6,10 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { createClient } from '@/utils/supabase/client';
 
 export default function ForgotPasswordPage() {
+  const supabase = createClient();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,50 +20,41 @@ export default function ForgotPasswordPage() {
     try {
       if (!email.trim()) {
         toast.error('Please enter your email address.');
-        setIsSubmitting(false);
         return;
       }
 
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
 
-      if (res.status === 429) {
-        const data = await res.json().catch(() => null);
-        toast.error(
-          (data && typeof data.error === 'string')
-            ? data.error
-            : 'Too many reset requests. Please wait a moment and try again.'
-        );
+      if (error) {
+        const msg = error.message || '';
+        const status = (error as unknown as { status?: number }).status;
+
+        if (status === 429 || /rate|too many/i.test(msg)) {
+          toast.error('Too many reset requests. Please wait a moment and try again.');
+          return;
+        }
+
+        if (status === 504) {
+          toast.error(
+            'Reset email timed out. Check Supabase Auth SMTP settings (or disable custom SMTP) and try again.'
+          );
+          return;
+        }
+
+        if (/redirect|redirectto|invalid url|site url/i.test(msg)) {
+          toast.error(
+            'Reset email cannot be sent because the redirect URL is not allowed in Supabase. Add this site URL in Supabase Auth settings.'
+          );
+          return;
+        }
+
+        toast.error(msg || 'Failed to send reset email');
         return;
       }
 
-      if (res.status >= 500) {
-        const data = await res.json().catch(() => null);
-        // Helpful for debugging in dev; does not affect user enumeration.
-        // eslint-disable-next-line no-console
-        console.error('Forgot-password failed:', data ?? { status: res.status });
-        toast.error(
-          (data && typeof data.error === 'string')
-            ? data.error
-            : 'Reset email is temporarily unavailable. Please try again later.'
-        );
-        return;
-      }
-
-      // Always show a generic success message to avoid user enumeration.
-      if (!res.ok) {
-        toast.success('If an account with this email exists, a reset link has been sent.');
-      } else {
-        const data = await res.json().catch(() => null);
-        toast.success(
-          (data && typeof data.message === 'string')
-            ? data.message
-            : 'If an account with this email exists, a reset link has been sent.'
-        );
-      }
+      // Do not reveal whether a user exists.
+      toast.success('If an account with this email exists, a reset link has been sent.');
       setEmail('');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'An unexpected error occurred';
