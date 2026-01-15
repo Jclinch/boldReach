@@ -39,11 +39,20 @@ export default async function PrintShipmentPage({
   const { id } = await params;
   const supabase = createClient(cookies());
 
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes?.user) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-slate-700">Unauthorized</p>
+      </div>
+    );
+  }
+
   const { data, error } = await supabase
     .from('shipments')
     .select('*')
     .eq('id', id)
-    .maybeSingle();
+    .single();
 
   if (error || !data) {
     return (
