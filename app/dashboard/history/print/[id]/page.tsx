@@ -8,6 +8,8 @@ type Shipment = {
   id: string;
   tracking_number: string | null;
   sender_name: string | null;
+  sender_phone: string | null;
+  sender_contact: {phone?: string} | null;
   receiver_name: string | null;
   receiver_phone?: string | null;
   receiver_contact: { phone?: string } | null;
@@ -63,6 +65,7 @@ export default async function PrintShipmentPage({
   }
 
   const shipment = data as unknown as Shipment;
+  const senderPhone = shipment.sender_phone || shipment.sender_contact?.phone || '-';
   const receiverPhone = shipment.receiver_phone || shipment.receiver_contact?.phone || '—';
   const origin =
     (shipment.origin_location || shipment.pickup_location || null) as string | null;
@@ -153,6 +156,10 @@ export default async function PrintShipmentPage({
                   <span className="font-semibold text-slate-700">Location:</span>
                   <span className="text-slate-900 mt-1 pl-2">{origin || '—'}</span>
                 </div>
+                <div>
+                  <span className="font-semibold text-slate-700">Phone:</span>
+                  <span className="ml-2 text-slate-900">{senderPhone}</span>
+                </div>
               </div>
             </div>
 
@@ -197,6 +204,10 @@ export default async function PrintShipmentPage({
               <div className="text-sm mt-3 pt-3 border-t border-amber-200">
                 <span className="font-semibold text-slate-700">Weight:</span>
                 <span className="ml-2 text-lg font-bold text-slate-900">{shipment.weight ?? '—'} KG</span>
+              </div>
+              <div className="text-sm mt-3 pt-3 border-t border-amber-200">
+                <span className="font-semibold text-slate-700">Package Quantity:</span>
+                <span className="ml-2 text-lg font-bold text-slate-900">{shipment.package_quantity ?? '—'}</span>
               </div>
             </div>
           </div>

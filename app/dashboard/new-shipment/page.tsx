@@ -53,6 +53,7 @@ export default function NewShipmentPage() {
 
   const [formData, setFormData] = useState({
     senderName: '',
+    senderPhone: '',
     receiverName: '',
     receiverPhone: '',
     itemsDescription: '',
@@ -140,10 +141,13 @@ export default function NewShipmentPage() {
 
     try {
       const normalizedReceiverPhone = normalizePhone(formData.receiverPhone);
+      const normalizedSenderPhone = normalizePhone(formData.senderPhone)
 
       // Basic client-side validation
       const newErrors: Record<string, string> = {};
       if (!formData.senderName.trim()) newErrors.senderName = 'Sender name is required';
+      if (!formData.senderPhone.trim()) newErrors.senderPhone = 'Sender phone number is required';
+      else if (!isValidPhone(formData.senderPhone)) newErrors.senderPhone = 'Enter a valid 11-digit phone number (e.g., 08012345678)';
       if (!formData.receiverName.trim()) newErrors.receiverName = 'Receiver name is required';
       if (!formData.receiverPhone.trim()) newErrors.receiverPhone = 'Receiver phone number is required';
       else if (!isValidPhone(formData.receiverPhone)) newErrors.receiverPhone = 'Enter a valid 11-digit phone number (e.g., 08012345678)';
@@ -190,6 +194,9 @@ export default function NewShipmentPage() {
       const shipmentInsert: Record<string, unknown> = {
         user_id: user.id,
         sender_name: formData.senderName,
+        sender_contact: {
+          phone: normalizedSenderPhone,
+        },
         receiver_name: formData.receiverName,
         receiver_contact: {
           phone: normalizedReceiverPhone,
@@ -258,6 +265,7 @@ export default function NewShipmentPage() {
       // Reset form
       setFormData({
         senderName: '',
+        senderPhone: '',
         receiverName: '',
         receiverPhone: '',
         itemsDescription: '',
@@ -280,6 +288,7 @@ export default function NewShipmentPage() {
 
   const isFormValid =
     Boolean(formData.senderName.trim()) &&
+    Boolean(formData.senderPhone.trim()) &&
     Boolean(formData.receiverName.trim()) &&
     Boolean(formData.receiverPhone.trim()) &&
     Boolean(formData.itemsDescription.trim()) &&
@@ -334,6 +343,30 @@ export default function NewShipmentPage() {
                 />
                 {errors.receiverName && <p className="mt-1.5 text-xs text-red-600">{errors.receiverName}</p>}
               </div>
+            </div>
+
+            {/* Sender Phone */}
+            <div className="mb-4">
+              <label className="block text-[13px] font-medium text-gray-700 mb-2">Sender&apos;s Phone Number</label>
+              <input
+                type="tel"
+                name="senderPhone"
+                value={formData.senderPhone}
+                onChange={(e) => {
+                  // live-normalize lightly while typing (don’t block input)
+                  setFormData((prev) => ({ ...prev, senderPhone: e.target.value }));
+                }}
+                onBlur={() => {
+                  setFormData((prev) => ({ ...prev, senderPhone: normalizePhone(prev.senderPhone) }));
+                }}
+                placeholder="e.g., 08012345678"
+                inputMode="tel"
+                autoComplete="tel"
+                className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  errors.senderPhone ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              {errors.senderPhone && <p className="mt-1.5 text-xs text-red-600">{errors.senderPhone}</p>}
             </div>
 
             {/* Receiver Phone */}
