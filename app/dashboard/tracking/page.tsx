@@ -320,7 +320,24 @@ export default function TrackingPage() {
                 <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Latest Image</h2>
                 {imageUrl ? (
                   <div className="rounded-lg overflow-hidden border border-[#E6E7EB]">
-                    <Image src={imageUrl} alt="Shipment" width={800} height={600} className="w-full h-auto" />
+                    <img 
+                      src={imageUrl} 
+                      alt="Shipment" 
+                      className="w-full h-auto" 
+                      onError={(e) => {
+                        console.error('Image failed to load:', imageUrl);
+                        // Hide the image on error
+                        e.currentTarget.style.display = 'none';
+                        // Show a message
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'py-10 text-center text-red-500 text-sm';
+                          errorDiv.textContent = 'Image failed to load (private storage)';
+                          parent.appendChild(errorDiv);
+                        }
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="py-10 text-center text-[#94A3B8] text-sm">No image available</div>
