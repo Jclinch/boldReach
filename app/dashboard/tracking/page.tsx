@@ -344,7 +344,7 @@ export default function TrackingPage() {
                 <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Latest Image</h2>
                 {imageUrl ? (
                   <div className="rounded-lg overflow-hidden border border-[#E6E7EB]">
-                    <Image src={imageUrl} alt="Shipment" width={800} height={600} className="w-full h-auto" />
+                    <Image src={imageUrl} alt="Shipment" width={800} height={600} className="w-full h-auto" unoptimized={true} />
                   </div>
                 ) : (
                   <div className="py-10 text-center text-[#94A3B8] text-sm">No image available</div>
