@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/Card';
+import Image from 'next/image';
 
 type EventRow = {
   id: string;
@@ -27,7 +28,8 @@ type TrackingResponse = {
     weight?: number;
     packageQuantity?: number | null;
     itemsDescription?: string;
-    package_image_url?: string;
+    packageImageUrl?: string; 
+    package_image_url?: string; // Kept for backward compatibility
     status?: string;
     progressStep?: 'pending' | 'in_transit' | 'out_for_delivery' | 'delivered';
     progressIndex?: number; // 0..3
@@ -78,6 +80,15 @@ export default function TrackingPage() {
   };
 
   const progressIndex = data?.shipment?.progressIndex ?? -1;
+  const rawImageUrl = data?.shipment?.packageImageUrl || data?.shipment?.package_image_url || '';
+  const versionTag = data?.shipment?.createdAt || '';
+  const imageUrl = rawImageUrl
+    ? `${rawImageUrl}${rawImageUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(versionTag)}`
+    : '';
+
+  
+  
+
 
   return (
     <DashboardLayout>
@@ -277,26 +288,46 @@ export default function TrackingPage() {
         )}
 
         {/* Timeline / events card */}
-        {data && data.events && data.events.length > 0 && (
-          <Card>
-            <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Tracking Timeline</h2>
-            <div className="space-y-4">
-              {data.events.map((ev) => (
-                <div key={ev.id} className="flex items-start gap-4">
-                  <div className="w-10">
-                    <div className="w-8 h-8 rounded-full bg-[#E6E7EB] flex items-center justify-center text-[#475569]">✓</div>
+        {data && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card>
+                <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Tracking Timeline</h2>
+                {data.events && data.events.length > 0 ? (
+                  <div className="space-y-4">
+                    {data.events.map((ev) => (
+                      <div key={ev.id} className="flex items-start gap-4">
+                        <div className="w-10">
+                          <div className="w-8 h-8 rounded-full bg-[#E6E7EB] flex items-center justify-center text-[#475569]">✓</div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-[#1E293B]">
+                            {ev.eventType.replace(/_/g, ' ')}
+                          </div>
+                          <div className="text-sm text-[#64748B]">{ev.description}</div>
+                          <div className="text-xs text-[#94A3B8] mt-1">{new Date(ev.eventTimestamp).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-[#1E293B]">
-                      {ev.eventType.replace(/_/g, ' ')}
-                    </div>
-                    <div className="text-sm text-[#64748B]">{ev.description}</div>
-                    <div className="text-xs text-[#94A3B8] mt-1">{new Date(ev.eventTimestamp).toLocaleString()}</div>
-                  </div>
-                </div>
-              ))}
+                ) : (
+                  <div className="py-8 text-center text-[#94A3B8] text-sm">No tracking events yet</div>
+                )}
+              </Card>
             </div>
-          </Card>
+            <div className="md:col-span-1">
+              <Card>
+                <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Latest Image</h2>
+                {imageUrl ? (
+                  <div className="rounded-lg overflow-hidden border border-[#E6E7EB]">
+                    <Image src={imageUrl} alt="Shipment" width={800} height={600} className="w-full h-auto" />
+                  </div>
+                ) : (
+                  <div className="py-10 text-center text-[#94A3B8] text-sm">No image available</div>
+                )}
+              </Card>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>
