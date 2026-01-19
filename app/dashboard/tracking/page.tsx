@@ -13,14 +13,17 @@ import Image from 'next/image';
 const getImageUrl = (rawImageUrl: string, versionTag: string) => {
   if (!rawImageUrl) return '';
 
+  // Remove query parameters first for matching
+  const urlWithoutQuery = rawImageUrl.split('?')[0];
+  
+  // Try different URL patterns
   const patterns = [
-    /package-images\/package-images\/(.+)/, // Full path with bucket twice
-    /public\/package-images\/(.+)/, // Direct public path
-    /object\/public\/package-images\/(.+)/, // Object public path
+    /storage\/v1\/object\/public\/package-images\/package-images\/(.+)/,
+    /package-images\/package-images\/(.+)/,
   ];
   
   for (const pattern of patterns) {
-    const match = rawImageUrl.match(pattern);
+    const match = urlWithoutQuery.match(pattern);
     if (match && match[1]) {
       const encodedPath = encodeURIComponent(match[1]);
       const versionParam = versionTag ? `&v=${encodeURIComponent(versionTag)}` : '';
@@ -28,7 +31,7 @@ const getImageUrl = (rawImageUrl: string, versionTag: string) => {
     }
   }
   
-  // If no pattern matches, return the original URL
+  console.log('No pattern matched for URL:', rawImageUrl);
   return rawImageUrl;
 };
 
