@@ -9,6 +9,29 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card } from '@/components/Card';
 import Image from 'next/image';
 
+
+const getImageUrl = (rawImageUrl: string, versionTag: string) => {
+  if (!rawImageUrl) return '';
+
+  const patterns = [
+    /package-images\/package-images\/(.+)/, // Full path with bucket twice
+    /public\/package-images\/(.+)/, // Direct public path
+    /object\/public\/package-images\/(.+)/, // Object public path
+  ];
+  
+  for (const pattern of patterns) {
+    const match = rawImageUrl.match(pattern);
+    if (match && match[1]) {
+      const encodedPath = encodeURIComponent(match[1]);
+      const versionParam = versionTag ? `&v=${encodeURIComponent(versionTag)}` : '';
+      return `/api/proxy-image?path=${encodedPath}${versionParam}`;
+    }
+  }
+  
+  // If no pattern matches, return the original URL
+  return rawImageUrl;
+};
+
 type EventRow = {
   id: string;
   eventType: string;
@@ -82,9 +105,7 @@ export default function TrackingPage() {
   const progressIndex = data?.shipment?.progressIndex ?? -1;
   const rawImageUrl = data?.shipment?.packageImageUrl || data?.shipment?.package_image_url || '';
   const versionTag = data?.shipment?.createdAt || '';
-  const imageUrl = rawImageUrl
-    ? `${rawImageUrl}${rawImageUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(versionTag)}`
-    : '';
+  const imageUrl = getImageUrl(rawImageUrl, versionTag);
 
   
   
@@ -320,24 +341,7 @@ export default function TrackingPage() {
                 <h2 className="text-lg font-semibold text-[#1E293B] mb-4">Latest Image</h2>
                 {imageUrl ? (
                   <div className="rounded-lg overflow-hidden border border-[#E6E7EB]">
-                    <img 
-                      src={imageUrl} 
-                      alt="Shipment" 
-                      className="w-full h-auto" 
-                      onError={(e) => {
-                        console.error('Image failed to load:', imageUrl);
-                        // Hide the image on error
-                        e.currentTarget.style.display = 'none';
-                        // Show a message
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) {
-                          const errorDiv = document.createElement('div');
-                          errorDiv.className = 'py-10 text-center text-red-500 text-sm';
-                          errorDiv.textContent = 'Image failed to load (private storage)';
-                          parent.appendChild(errorDiv);
-                        }
-                      }}
-                    />
+                    <Image src={imageUrl} alt="Shipment" width={800} height={600} className="w-full h-auto" />
                   </div>
                 ) : (
                   <div className="py-10 text-center text-[#94A3B8] text-sm">No image available</div>
