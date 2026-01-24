@@ -13,6 +13,8 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
+import { contacts as mockContacts } from '../../../temp-contacts'; //temporary contact storage
+
 const STORAGE_BUCKET = 'package-images'; // Supabase storage bucket for shipment images
 const UPLOAD_FOLDER = 'package-images';
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -25,6 +27,22 @@ export default function NewShipmentPage() {
 
 	const [locationOptions, setLocationOptions] = useState<string[]>([]);
 	const [locationsLoading, setLocationsLoading] = useState(false);
+
+  // newly Added sender/reciever states and effects
+  const [contacts, setContacts] = useState<typeof mockContacts>(mockContacts);
+  const [senderSuggestions, setSenderSuggestions] = useState<{ name: string; phone?: string; address?: string; }[]>([]);
+  const [receiverSuggestions, setReceiverSuggestions] = useState<{ name: string; phone?: string; address?: string; }[]>([]);
+
+  // useEffect(() => {
+  //   (async () => {
+  //     const { data, error } = await supabase.from('contacts').select('name, phone, address');
+  //     if (!error && data) setContacts(data);
+  //   })();
+  // }, []);
+
+  // useEffect to be added later
+
+  // The continuation of the original code
 
 	useEffect(() => {
 		let cancelled = false;
@@ -314,34 +332,90 @@ export default function NewShipmentPage() {
           <div className="">
             {/* Sender and Receiver Names */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
+              <div className="relative">
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Sender&apos;s Name</label>
                 <input
                   type="text"
                   name="senderName"
                   value={formData.senderName}
-                  onChange={handleInputChange}
-                  placeholder="e.g., John Doe"
-                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData(prev => ({ ...prev, senderName: value }));
+
+                    // filter suggestions
+                    const filtered = contacts.filter(c =>
+                      c.name.toLowerCase().includes(value.toLowerCase())
+                    );
+                    setSenderSuggestions(filtered.slice(0, 5)); // show max 5 suggestions
+                  }}
+                  placeholder="Select sender..."
+                  className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 ${
                     errors.senderName ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
                 />
-                {errors.senderName && <p className="mt-1.5 text-xs text-red-600">{errors.senderName}</p>}
+                {senderSuggestions.length > 0 && formData.senderName && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 rounded-md max-h-36 overflow-y-auto">
+                    {senderSuggestions.map((c, idx) => (
+                      <li
+                        key={idx}
+                        className="px-3 py-2 hover:bg-orange-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            senderName: c.address ? `${c.name} - ${c.address}` : c.name,
+                            senderPhone: c.phone || ''
+                          }));
+                          setSenderSuggestions([]);
+                        }}
+                      >
+                        {c.name} {c.address ? `(${c.address})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              <div>
+              <div className='relative'>
                 <label className="block text-[13px] font-medium text-gray-700 mb-2">Receiver&apos;s Name</label>
                 <input
                   type="text"
                   name="receiverName"
                   value={formData.receiverName}
-                  onChange={handleInputChange}
-                  placeholder="e.g., John Doe"
-                  className={`w-full px-4 py-3 text-[14px] border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent transition-all ${
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData(prev => ({ ...prev, receiverName: value }));
+
+                    const filtered = contacts.filter(c =>
+                      c.name.toLowerCase().includes(value.toLowerCase()) ||
+                      (c.address?.toLowerCase() || '').includes(value.toLowerCase())
+                    );
+                    setReceiverSuggestions(filtered.slice(0, 5));
+                  }}
+                  placeholder="Select receiver..."
+                  className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 ${
                     errors.receiverName ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
                 />
-                {errors.receiverName && <p className="mt-1.5 text-xs text-red-600">{errors.receiverName}</p>}
+                {receiverSuggestions.length > 0 && formData.receiverName && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 rounded-md max-h-36 overflow-y-auto">
+                    {receiverSuggestions.map((c, idx) => (
+                      <li
+                        key={idx}
+                        className="px-3 py-2 hover:bg-orange-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            receiverName: c.address ? `${c.name} - ${c.address}` : c.name,
+                            receiverPhone: c.phone || ''
+                          }));
+                          setReceiverSuggestions([]);
+                        }}
+                      >
+                        {c.name} {c.address ? `(${c.address})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
