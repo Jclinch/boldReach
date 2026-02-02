@@ -136,49 +136,30 @@ export default function AdminDashboard() {
 	// test fetchDeliveryDates
 	const fetchDeliveredDates = useCallback(
 		async (shipmentIds: string[]) => {
-		const uniqueIds = Array.from(new Set(shipmentIds)).filter(Boolean);
-		if (uniqueIds.length === 0) return {} as Record<string, string>;
+			const uniqueIds = Array.from(new Set(shipmentIds)).filter(Boolean);
+			if (uniqueIds.length === 0) return {} as Record<string, string>;
 
-		const { data, error } = await supabase
-			.from('shipment_events')
-			.select('shipment_id,event_time')
-			.eq('event_type', 'delivered')
-			.in('shipment_id', uniqueIds);
-
-		if (error) {
-			console.error('Failed to fetch delivered events:', error);
-			return {} as Record<string, string>;
-		}
-
-		const deliveredAtByShipmentId: Record<string, string> = {};
-		type DeliveredEventRow = { shipment_id: string; event_time: string };
-		const rows = (data || []) as unknown as DeliveredEventRow[];
-		for (const row of rows) {
-			const shipmentId = row.shipment_id;
-			const eventTime = row.event_time;
-			if (!shipmentId || !eventTime) continue;
-
-			const existing = deliveredAtByShipmentId[shipmentId];
-			if (!existing) {
-			deliveredAtByShipmentId[shipmentId] = eventTime;
-			continue;
+			try {
+				const res = await fetch('/api/admin/shipments/delivery-dates', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ shipmentIds: uniqueIds }),
+				});
+			
+				if (!res.ok) {
+					const error = await res.json();
+					console.error('API error:', error);
+					return {} as Record<string, string>;
+				}
+			
+				return await res.json();
+			} catch (error) {
+				console.error('Fetch error:', error);
+				return {} as Record<string, string>;
 			}
-
-			const existingTime = new Date(existing).getTime();
-			const nextTime = new Date(eventTime).getTime();
-			if (Number.isFinite(nextTime) && (!Number.isFinite(existingTime) || nextTime > existingTime)) {
-			deliveredAtByShipmentId[shipmentId] = eventTime;
-			}
-		}
-
-		return deliveredAtByShipmentId;
 		},
-		[supabase]
+		[] // No dependencies
 	);
-
-
-	
-
 
 
 	const exportShipmentsToCsv = async () => {
@@ -225,7 +206,7 @@ export default function AdminDashboard() {
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
 						csvEscape(deliveryDate),
 					]
-					
+			
 		});
 
 		const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
