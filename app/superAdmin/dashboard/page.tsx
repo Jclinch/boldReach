@@ -19,6 +19,8 @@ interface ShipmentRow {
 	origin_location?: string;
 	destination?: string;
 	delivery_location?: string;
+	receiverName?: string;
+	receiver_name?: string | null;
 	receiver_phone?: string | null;
 	receiver_contact?: { phone?: string } | null;
 	items_description?: string;
@@ -44,6 +46,7 @@ interface NormalizedShipment {
 	status: string;
 	progressStep: string;
 	senderName: string;
+	receiverName: string;
 	receiverPhone: string;
 	description: string;
 	destination: string;
@@ -129,6 +132,55 @@ export default function AdminDashboard() {
 		return rawList.map(normalize);
 	}, [search, statusFilter]);
 
+
+	// test fetchDeliveryDates
+	const fetchDeliveredDates = useCallback(
+		async (shipmentIds: string[]) => {
+		const uniqueIds = Array.from(new Set(shipmentIds)).filter(Boolean);
+		if (uniqueIds.length === 0) return {} as Record<string, string>;
+
+		const { data, error } = await supabase
+			.from('shipment_events')
+			.select('shipment_id,event_time')
+			.eq('event_type', 'delivered')
+			.in('shipment_id', uniqueIds);
+
+		if (error) {
+			console.error('Failed to fetch delivered events:', error);
+			return {} as Record<string, string>;
+		}
+
+		const deliveredAtByShipmentId: Record<string, string> = {};
+		type DeliveredEventRow = { shipment_id: string; event_time: string };
+		const rows = (data || []) as unknown as DeliveredEventRow[];
+		for (const row of rows) {
+			const shipmentId = row.shipment_id;
+			const eventTime = row.event_time;
+			if (!shipmentId || !eventTime) continue;
+
+			const existing = deliveredAtByShipmentId[shipmentId];
+			if (!existing) {
+			deliveredAtByShipmentId[shipmentId] = eventTime;
+			continue;
+			}
+
+			const existingTime = new Date(existing).getTime();
+			const nextTime = new Date(eventTime).getTime();
+			if (Number.isFinite(nextTime) && (!Number.isFinite(existingTime) || nextTime > existingTime)) {
+			deliveredAtByShipmentId[shipmentId] = eventTime;
+			}
+		}
+
+		return deliveredAtByShipmentId;
+		},
+		[supabase]
+	);
+
+
+	
+
+
+
 	const exportShipmentsToCsv = async () => {
 		const exportList = await fetchAllShipmentsForExport();
 		if (exportList.length === 0) return;
@@ -140,21 +192,28 @@ export default function AdminDashboard() {
 		};
 
 		const headers = isSuperAdminArea
-			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Phone', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date']
+			? ['Tracking ID', 'Origin', 'Destination', 'Receiver Name', 'Receiver Phone', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date']
 			: ['Tracking ID', 'Destination', 'Description', 'Weight (kg)', 'Package Qty', 'Status', 'Shipment Date', 'Delivery Date'];
-		const rows = exportList.map((s) =>
-			isSuperAdminArea
+		
+		const deliveredAtById = await fetchDeliveredDates(exportList.map((s) => s.id));
+
+
+		const rows = exportList.map((s) => {
+			const deliveredAt = deliveredAtById[s.id];
+      		const deliveryDate = deliveredAt ? formatDateOnly(deliveredAt) : '';
+			return isSuperAdminArea
 				? [
 						csvEscape(s.trackingNumber),
 						csvEscape(s.origin),
 						csvEscape(s.destination),
+						csvEscape(s.receiverName),
 						csvEscape(s.receiverPhone),
 						csvEscape(s.description),
 						csvEscape(s.weightKg),
 						csvEscape(s.packageQuantity),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
-						csvEscape(formatDateOnly(s.deliveredAt)),
+						csvEscape(deliveryDate),
 					]
 				: [
 						csvEscape(s.trackingNumber),
@@ -164,9 +223,10 @@ export default function AdminDashboard() {
 						csvEscape(s.packageQuantity),
 						csvEscape(getStatusLabel(s.progressStep)),
 						csvEscape(formatDateOnly(s.shipmentDate || s.createdAt)),
-						csvEscape(formatDateOnly(s.deliveredAt)),
+						csvEscape(deliveryDate),
 					]
-		);
+					
+		});
 
 		const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -251,6 +311,7 @@ export default function AdminDashboard() {
 			status: status,
 			progressStep: displayStatus,
 			senderName: (row.senderName || row.sender_name || '').toString(),
+			receiverName: (row.receiverName || row.receiver_name || '').toString(),
 			receiverPhone: (row.receiver_phone || row.receiver_contact?.phone || '').toString(),
 			weightKg: row.weight === null || row.weight === undefined ? '' : String(row.weight),
 			packageQuantity: row.package_quantity === null || row.package_quantity === undefined ? '' : String(row.package_quantity),
