@@ -61,8 +61,10 @@ export async function POST(request: NextRequest) {
         
         if (error) {
             console.error('Database error:', error);
+            console.log("SERVICE KEY EXISTS:", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
             return NextResponse.json(
                 { error: 'Failed to fetch delivery dates' },
+                
                 { status: 500 }
             );
         }
