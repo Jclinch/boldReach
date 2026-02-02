@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
                 deliveryDates[shipmentId] = eventTime;
             }
         });
-        
+        console.log("SERVICE KEY EXISTS:", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
+
         return NextResponse.json(deliveryDates);
     } catch (error) {
         console.error('API error:', error);
