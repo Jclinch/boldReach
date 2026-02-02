@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('shipment_events')
             .select('shipment_id, event_time')
             .eq('event_type', 'delivered')
@@ -61,10 +61,8 @@ export async function POST(request: NextRequest) {
         
         if (error) {
             console.error('Database error:', error);
-            console.log("SERVICE KEY EXISTS:", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
             return NextResponse.json(
                 { error: 'Failed to fetch delivery dates' },
-                
                 { status: 500 }
             );
         }
