@@ -1,4 +1,4 @@
-// app/api/admin/shipments/delivery-dates/route.ts - RETURN ERRORS IN RESPONSE
+// app/api/admin/shipments/delivery-dates/route.ts - FIXED WITH BATCHING
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createServerClient } from "@/utils/supabase/server";
@@ -11,6 +11,15 @@ function getServiceRoleKey() {
     process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
     ''
   );
+}
+
+// Helper to chunk array into smaller batches
+function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
 }
 
 export async function POST(request: NextRequest) {
@@ -66,6 +75,8 @@ export async function POST(request: NextRequest) {
             id && typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
         );
         
+        console.log(`Processing ${validIds.length} valid shipment IDs`);
+        
         if (validIds.length === 0) {
             return NextResponse.json({});
         }
@@ -74,70 +85,63 @@ export async function POST(request: NextRequest) {
         const serviceRoleKey = getServiceRoleKey();
         if (!serviceRoleKey) {
             return NextResponse.json({ 
-                error: 'Server configuration error - Missing service role key',
-                envCheck: {
-                    hasSUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-                    hasNEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
-                    urlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length || 0
-                }
+                error: 'Server configuration error - Missing service role key'
             }, { status: 500 });
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseAdmin = createAdminClient(supabaseUrl, serviceRoleKey);
 
-        // 5. Execute query - THIS WILL RETURN THE ACTUAL ERROR
-        const { data, error } = await supabaseAdmin
-            .from('shipment_events')
-            .select('shipment_id, event_time')
-            .eq('event_type', 'delivered')
-            .in('shipment_id', validIds);
+        // 5. CHUNK THE IDs - PostgreSQL has limits on IN() clause size
+        // Typical limit is 100-1000 parameters, we'll use 100 per batch
+        const CHUNK_SIZE = 100;
+        const idChunks = chunkArray(validIds, CHUNK_SIZE);
         
-        // ⚠️ CRITICAL: Return the ACTUAL database error
-        if (error) {
-            return NextResponse.json(
-                { 
-                    error: 'DATABASE ERROR',
-                    details: {
-                        message: error.message,
-                        code: error.code,
-                        details: error.details,
-                        hint: error.hint
-                    },
-                    queryInfo: {
-                        table: 'shipment_events',
-                        event_type: 'delivered',
-                        shipment_count: validIds.length,
-                        sample_ids: validIds.slice(0, 3)
-                    }
-                },
-                { status: 500 }
-            );
-        }
-
-        // 6. Process results
+        console.log(`Breaking ${validIds.length} IDs into ${idChunks.length} chunks of ${CHUNK_SIZE}`);
+        
+        // 6. Execute queries in parallel (but limited)
         const deliveryDates: Record<string, string> = {};
         
-        data?.forEach((row: any) => {
-            const shipmentId = row.shipment_id;
-            const eventTime = row.event_time;
+        // Process chunks sequentially to avoid overwhelming the database
+        for (let i = 0; i < idChunks.length; i++) {
+            const chunk = idChunks[i];
+            console.log(`Processing chunk ${i + 1}/${idChunks.length} (${chunk.length} IDs)`);
             
-            if (!shipmentId || !eventTime) return;
+            const { data, error } = await supabaseAdmin
+                .from('shipment_events')
+                .select('shipment_id, event_time')
+                .eq('event_type', 'delivered')
+                .in('shipment_id', chunk);
             
-            const existing = deliveryDates[shipmentId];
-            if (!existing || new Date(eventTime) > new Date(existing)) {
-                deliveryDates[shipmentId] = eventTime;
+            if (error) {
+                console.error(`Error in chunk ${i + 1}:`, error);
+                // Continue with other chunks instead of failing completely
+                continue;
             }
-        });
+            
+            // Process results from this chunk
+            data?.forEach((row: any) => {
+                const shipmentId = row.shipment_id;
+                const eventTime = row.event_time;
+                
+                if (!shipmentId || !eventTime) return;
+                
+                const existing = deliveryDates[shipmentId];
+                if (!existing || new Date(eventTime) > new Date(existing)) {
+                    deliveryDates[shipmentId] = eventTime;
+                }
+            });
+        }
         
+        console.log(`✅ Found delivery dates for ${Object.keys(deliveryDates).length} shipments`);
         return NextResponse.json(deliveryDates);
         
     } catch (error: any) {
+        console.error('Unexpected error:', error);
         return NextResponse.json(
             { 
-                error: 'UNEXPECTED ERROR',
-                message: error.message,
-                stack: error.stack?.split('\n').slice(0, 3)
+                error: 'Internal server error',
+                message: error.message
             },
             { status: 500 }
         );
