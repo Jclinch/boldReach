@@ -124,21 +124,76 @@ export async function PATCH(
     const eventDescription = location && location.trim() 
       ? `Status changed to ${progressStep.replace(/_/g, ' ')} - Location: ${location.trim()}`
       : `Status changed to ${progressStep.replace(/_/g, ' ')}`;
-    
-    const { error: eventError } = await supabase
-      .from('shipment_events')
-      .insert({
-        shipment_id: id,
-        event_type: progressStep,
-        description: eventDescription,
-        location: location?.trim() || null,
-        created_by: user.id,
-      });
 
-    if (eventError) {
-      console.error('Error creating event:', eventError);
-      // Don't fail the request if event creation fails
+    
+    const serviceRoleKey = getServiceRoleKey();
+    if (!serviceRoleKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
+
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      serviceRoleKey
+    );
+
+    
+    // const { error: eventError } = await supabase
+    //   .from('shipment_events')
+    //   .insert({
+    //     shipment_id: id,
+    //     event_type: progressStep,
+    //     description: eventDescription,
+    //     location: location?.trim() || null,
+    //     created_by: user.id,
+    //   });
+    if (progressStep === 'delivered') {
+      // Check if delivered event already exists
+      const { data: existingDelivered } = await supabaseAdmin
+        .from('shipment_events')
+        .select('id')
+        .eq('shipment_id', id)
+        .eq('event_type', 'delivered')
+        .maybeSingle();
+
+      if (!existingDelivered) {
+        // First time delivery → create event
+        const { error: insertError } = await supabaseAdmin
+          .from('shipment_events')
+          .insert({
+            shipment_id: id,
+            event_type: 'delivered',
+            description: eventDescription,
+            location: location?.trim() || null,
+            created_by: user.id,
+            event_time: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('Error creating delivered event:', insertError);
+        }
+      }
+    } else {
+      // Normal status change → insert event
+      const { error: eventError } = await supabaseAdmin
+        .from('shipment_events')
+        .insert({
+          shipment_id: id,
+          event_type: progressStep,
+          description: eventDescription,
+          location: location?.trim() || null,
+          created_by: user.id,
+        });
+
+      if (eventError) {
+        console.error('Error creating event:', eventError);
+      }
+    }
+
+    // if (eventError) {
+    //   console.error('Error creating event:', eventError);
+    //   // Don't fail the request if event creation fails
+    // }
 
     return NextResponse.json({ message: 'Shipment updated successfully' });
   } catch (error) {
