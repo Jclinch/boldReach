@@ -1,11 +1,20 @@
+// app/api/admin/shipments/delivery-dates/route.ts 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+
+// Use the SAME helper function
+function getServiceRoleKey() {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
+    ''
+  );
+}
 
 export async function POST(request: NextRequest) {
     try {
-
         const supabase = createServerClient(cookies());
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
@@ -16,7 +25,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('role')
@@ -39,6 +47,7 @@ export async function POST(request: NextRequest) {
                 { status: 403 }
             );
         }
+        
         const { shipmentIds } = await request.json();
 
         if (!shipmentIds || !Array.isArray(shipmentIds)) {
@@ -48,10 +57,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+        // ⚠️ FIX: Use the SAME pattern as the working API
+        const serviceRoleKey = getServiceRoleKey();
+        if (!serviceRoleKey) {
+            console.error('Service role key not configured');
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        }
 
-        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+            serviceRoleKey
+        );
 
         const { data, error } = await supabaseAdmin
             .from('shipment_events')
@@ -62,7 +78,7 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Database error:', error);
             return NextResponse.json(
-                { error: error.message, details: error },
+                { error: 'Failed to fetch delivery dates' },
                 { status: 500 }
             );
         }
@@ -81,8 +97,7 @@ export async function POST(request: NextRequest) {
                 deliveryDates[shipmentId] = eventTime;
             }
         });
-        console.log("SERVICE KEY EXISTS:", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
-
+        
         return NextResponse.json(deliveryDates);
     } catch (error) {
         console.error('API error:', error);
