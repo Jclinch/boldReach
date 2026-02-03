@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Database error:', error);
             return NextResponse.json(
-                { error: 'Failed to fetch delivery dates' },
+                { error: error.message, details: error },
                 { status: 500 }
             );
         }
