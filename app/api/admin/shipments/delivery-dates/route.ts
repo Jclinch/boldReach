@@ -1,4 +1,5 @@
-// app/api/admin/shipments/delivery-dates/route.ts - FIXED WITH BATCHING
+// app/api/admin/shipments/delivery-dates/route.ts 
+// Attempting with batching - (It worked!)
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createServerClient } from "@/utils/supabase/server";
