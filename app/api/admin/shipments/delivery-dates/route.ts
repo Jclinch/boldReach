@@ -1,4 +1,4 @@
-// app/api/admin/shipments/delivery-dates/route.ts 
+// app/api/admin/shipments/delivery-dates/route.ts - RETURN ERRORS IN RESPONSE
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createServerClient } from "@/utils/supabase/server";
@@ -15,6 +15,7 @@ function getServiceRoleKey() {
 
 export async function POST(request: NextRequest) {
     try {
+        // 1. Authentication
         const supabase = createServerClient(cookies());
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
@@ -25,29 +26,32 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // 2. Admin check
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('role')
             .eq('id', user.id)
             .single();
 
-        if (userError) {
-            console.error('Error fetching user role:', userError);
+        if (userError || !userData?.role) {
             return NextResponse.json(
-                { error: 'Failed to verify permissions' },
+                { 
+                    error: 'Failed to verify permissions',
+                    details: userError?.message 
+                },
                 { status: 500 }
             );
         }
 
-        // Only allow admins or super_admins
         const allowedRoles = ['admin', 'super_admin'];
-        if (!userData?.role || !allowedRoles.includes(userData.role)) {
+        if (!allowedRoles.includes(userData.role)) {
             return NextResponse.json(
                 { error: 'Admin access required' },
                 { status: 403 }
             );
         }
         
+        // 3. Parse request
         const { shipmentIds } = await request.json();
 
         if (!shipmentIds || !Array.isArray(shipmentIds)) {
@@ -57,33 +61,61 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ⚠️ FIX: Use the SAME pattern as the working API
-        const serviceRoleKey = getServiceRoleKey();
-        if (!serviceRoleKey) {
-            console.error('Service role key not configured');
-            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        // Filter valid UUIDs
+        const validIds = shipmentIds.filter(id => 
+            id && typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        );
+        
+        if (validIds.length === 0) {
+            return NextResponse.json({});
         }
 
-        const supabaseAdmin = createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-            serviceRoleKey
-        );
+        // 4. Get service key
+        const serviceRoleKey = getServiceRoleKey();
+        if (!serviceRoleKey) {
+            return NextResponse.json({ 
+                error: 'Server configuration error - Missing service role key',
+                envCheck: {
+                    hasSUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+                    hasNEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
+                    urlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length || 0
+                }
+            }, { status: 500 });
+        }
 
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseAdmin = createAdminClient(supabaseUrl, serviceRoleKey);
+
+        // 5. Execute query - THIS WILL RETURN THE ACTUAL ERROR
         const { data, error } = await supabaseAdmin
             .from('shipment_events')
             .select('shipment_id, event_time')
             .eq('event_type', 'delivered')
-            .in('shipment_id', shipmentIds);
+            .in('shipment_id', validIds);
         
+        // ⚠️ CRITICAL: Return the ACTUAL database error
         if (error) {
-            console.error('Database error:', error);
             return NextResponse.json(
-                { error: 'Failed to fetch delivery dates' },
+                { 
+                    error: 'DATABASE ERROR',
+                    details: {
+                        message: error.message,
+                        code: error.code,
+                        details: error.details,
+                        hint: error.hint
+                    },
+                    queryInfo: {
+                        table: 'shipment_events',
+                        event_type: 'delivered',
+                        shipment_count: validIds.length,
+                        sample_ids: validIds.slice(0, 3)
+                    }
+                },
                 { status: 500 }
             );
         }
 
-        // Process to get latest delivery date per shipment
+        // 6. Process results
         const deliveryDates: Record<string, string> = {};
         
         data?.forEach((row: any) => {
@@ -99,10 +131,14 @@ export async function POST(request: NextRequest) {
         });
         
         return NextResponse.json(deliveryDates);
-    } catch (error) {
-        console.error('API error:', error);
+        
+    } catch (error: any) {
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { 
+                error: 'UNEXPECTED ERROR',
+                message: error.message,
+                stack: error.stack?.split('\n').slice(0, 3)
+            },
             { status: 500 }
         );
     }
