@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('shipment_events')
             .select('shipment_id, event_time')
             .eq('event_type', 'delivered')
